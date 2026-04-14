@@ -8,6 +8,17 @@ This file captures the packaging, distribution, and infrastructure decisions
 that shape the project. The library's API/design spec lives elsewhere and is
 not re-litigated here.
 
+## Current state of this repo
+
+**This document is a forward-looking spec.** As of this commit, the repo
+contains only scaffolding — `.claude/` (Claude + prove_it config and rules),
+`script/test` and `script/test_fast` stubs, and this file. Everything else
+described below — `Package.swift`, `Sources/`, `Tests/`, `.gitignore`,
+`.swift-format`, `LICENSE`, `README.md`, `CHANGELOG.md`, `.spi.yml`,
+`.github/workflows/`, `.claude/skills/release.md`, the remaining `script/*`
+commands — is planned. Treat this file as the contract those artifacts must
+satisfy when they're created, not a map of what already exists.
+
 ## Toolchain
 
 - **Floor: Xcode 26.4+ / Swift 6.x.** Brand-new project, audience is Justin,
