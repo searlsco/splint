@@ -1,8 +1,11 @@
-# Freeway
+# Splint
 
-A multiplatform Model-View-Update (MVU) library for Swift. Primary audience is
-Justin; open-sourceable if anyone else finds it useful. Repo lives at
-`github.com/searlsco/freeway`. Module and product are both `Freeway`.
+A multiplatform Swift library for data modeling — helpers, patterns, and
+primitives that keep hot-path code fast. Born out of experimentation that
+identified data modeling (not data/action flow) as the root cause of
+performance issues in Justin's projects. Primary audience is Justin;
+open-sourceable if anyone else finds it useful. Repo lives at
+`github.com/searlsco/splint`. Module and product are both `Splint`.
 
 This file captures the packaging, distribution, and infrastructure decisions
 that shape the project. The library's API/design spec lives elsewhere and is
@@ -95,10 +98,10 @@ it doesn't gate where the package builds.
 
 ## Package structure
 
-- `.library(name: "Freeway", targets: ["Freeway"])` — **no forced linkage.**
+- `.library(name: "Splint", targets: ["Splint"])` — **no forced linkage.**
   SPM and the consumer decide static vs dynamic.
-- **Module/target split is deferred.** Current thinking: `Freeway` (core) and
-  `FreewaySwiftUI` (bindings) as separate targets/products. Revisit before
+- **Module/target split is deferred.** If macros or other build-time
+  helpers emerge, they'll likely warrant their own target. Revisit before
   1.0, informed by actual usage.
 - **`Package.resolved` is gitignored** — library convention, since consumers
   resolve against their own constraints.
@@ -119,9 +122,9 @@ it doesn't gate where the package builds.
 - **Thin README:** one-paragraph pitch, install snippet, a tiny usage
   example, a link to the docs on Swift Package Index. That's it.
 - **Rich DocC is the source of truth.** Catalog at
-  `Sources/Freeway/Freeway.docc/` with a landing page, conceptual articles
-  (e.g. "Thinking in MVU"), and symbol-level docs. Every public symbol gets
-  a `///` comment.
+  `Sources/Splint/Splint.docc/` with a landing page, conceptual articles
+  (e.g. "Modeling for performance"), and symbol-level docs. Every public
+  symbol gets a `///` comment.
 - **Hosted on Swift Package Index only.** `.spi.yml` at the repo root
   declares all supported platforms so SPI builds the compatibility matrix
   and DocC archive.
@@ -174,7 +177,7 @@ all invoke the same thing.
 | `script/format` | `swift format --in-place --recursive Sources Tests` — mutates. |
 | `script/lint` | `swift format lint --strict --recursive Sources Tests` — non-mutating; exits non-zero on violations. |
 | `script/release <major\|minor\|patch>` | Bumps version, updates CHANGELOG, tags (bare semver), pushes. Invoked by the release Claude skill. |
-| `script/docs` | Local DocC preview (`swift package generate-documentation --target Freeway`). |
+| `script/docs` | Local DocC preview (`swift package generate-documentation --target Splint`). |
 | `script/setup` | Fresh-clone bootstrap. Verifies toolchain; installs any repo-local tooling. |
 | `script/clean` | Nukes `.build/`, `Package.resolved`, local docs output. |
 
@@ -187,7 +190,8 @@ Project-scoped skills live in `.claude/skills/`:
 
 ## Deferred decisions (revisit before 1.0)
 
-- **Target/product split** — whether to separate `Freeway` core from
-  `FreewaySwiftUI` bindings. Decide based on real usage patterns.
+- **Target/product split** — whether to break out macros, build-time
+  helpers, or integration-specific code (e.g. SwiftUI/Observation
+  adapters) into their own targets. Decide based on real usage patterns.
 - **Concurrency / Sendable posture** — Justin has a documented spec for this;
-  apply it when implementing the MVU primitives, not now.
+  apply it when implementing the data-modeling primitives, not now.
