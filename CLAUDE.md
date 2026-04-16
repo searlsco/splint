@@ -81,6 +81,14 @@ it doesn't gate where the package builds.
 - Development follows BDD dual-loop TDD: a failing integration test drives
   inner unit-level red-green-refactor cycles until the integration test
   passes.
+- **100% line coverage on `Sources/Splint/`** is enforced by `script/test`
+  and is a forcing function, not a metric — delete unreachable lines,
+  restructure for testability, or tag with `// coverage:ignore — <rationale>`
+  (or a `coverage:ignore-start` / `-end` block). Rationale must be ≥10
+  chars. Override threshold via `SPLINT_COVERAGE_THRESHOLD=<n>` only for
+  local experimentation. Coverage parser lives at `script/lib/coverage.py`
+  with inline `--self-test` fixtures; see the README `## Coverage` section
+  for the contract.
 
 ## Formatting & linting
 
@@ -179,8 +187,8 @@ all invoke the same thing.
 
 | Script | Purpose |
 |---|---|
-| `script/test` | Full test run. Invoked by CI and by `prove_it`. *(stub exists)* |
-| `script/test_fast` | Quick-feedback subset used during the inner TDD loop. *(stub exists)* |
+| `script/test` | Full test run + coverage gate. Invoked by CI and by `prove_it`. Enforces 100% line coverage on `Sources/Splint/` via `script/lib/coverage.py`. |
+| `script/test_fast` | Quick-feedback subset used during the inner TDD loop. Skips `CredentialTests` (real keychain). No coverage gate — that lives on `script/test`. |
 | `script/format` | `swift format --in-place --recursive Sources Tests` — mutates. |
 | `script/lint` | `swift format lint --strict --recursive Sources Tests` — non-mutating; exits non-zero on violations. |
 | `script/release <major\|minor\|patch>` | Bumps version, updates CHANGELOG, tags (bare semver), pushes. Invoked by the release Claude skill. |
