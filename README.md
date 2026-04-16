@@ -14,19 +14,21 @@ data *flow* — it's data *modeling*. Splint names the types.
 ## Install
 
 ```swift
-.package(url: "https://github.com/searlsco/splint", from: "0.1.0")
+dependencies: [
+    .package(url: "https://github.com/searlsco/splint", from: "0.1.0")
+]
 ```
 
-Then, once after the first resolve, symlink the agent rules file into
-your project:
+Then drop the agent rules file into your project:
 
 ```sh
-swift package resolve
-.build/checkouts/splint/bin/install
+mkdir -p .claude/rules
+curl -fsSL https://raw.githubusercontent.com/searlsco/splint/main/claude/rules/splint.md \
+  -o .claude/rules/splint.md
 ```
 
-Commit the resulting `.claude/rules/splint.md` symlink. Updates propagate
-on `swift package update`.
+Commit the resulting `.claude/rules/splint.md`. Re-run the `curl` to
+pick up rule changes when you bump the Splint package version.
 
 ## Quick start
 
@@ -283,9 +285,8 @@ template is the right tool — not a data modeling library.
 ## Agent rules
 
 The canonical agent guidance lives at `claude/rules/splint.md` in this
-repo. Run `bin/install` in a consuming project to symlink it into
-`.claude/rules/splint.md`. Commit the symlink; updates propagate on
-`swift package update`.
+repo. See the install section above for how to drop it into a
+consuming project.
 
 ## License
 
