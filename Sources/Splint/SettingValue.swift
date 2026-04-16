@@ -9,7 +9,11 @@ import Foundation
 /// `Codable` structs are also absent — encoding arbitrary structs into
 /// `Data` and stashing them in `UserDefaults` is an antipattern. Use
 /// SwiftData for structured persistence.
-public protocol SettingValue: Sendable {}
+///
+/// `Equatable` is required so that ``Setting`` can suppress redundant
+/// observation cycles when an external KVO callback delivers a value
+/// that matches the current one.
+public protocol SettingValue: Sendable & Equatable {}
 
 extension Bool: SettingValue {}
 extension Int: SettingValue {}
