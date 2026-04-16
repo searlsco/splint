@@ -21,9 +21,21 @@ public final class Job<Value: Sendable> {
 
   public init() {}
 
-  /// Run `task`. Cancels any in-flight work. Phase transitions to
+  /// Run an async operation, transferring its result into the Job's
+  /// ``value``.
+  ///
+  /// Cancels any in-flight work. ``phase`` transitions to
   /// ``Phase/running`` immediately, then ``Phase/completed`` or
   /// ``Phase/failed(_:)`` when `task` resolves.
+  ///
+  /// The `task` closure is marked `sending` rather than `@Sendable`.
+  /// This uses region-based isolation (Swift 6.0+) to let the closure
+  /// capture non-`Sendable` values — like `@MainActor`-isolated
+  /// services or view state — at the call site, as long as those
+  /// values are in a disconnected isolation region when `run` is
+  /// called. In practice: capture what you need once, do not also
+  /// reference it from elsewhere after passing it in. See
+  /// [SE-0430](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0430-transferring-parameters-and-results.md).
   public func run(
     priority: TaskPriority? = nil,
     task: sending @escaping () async throws -> Value

@@ -278,6 +278,49 @@ var body: some View {
 Same rule as `Catalog`'s fetch closure: Splint closures capture at
 construction; mutable inputs flow through update methods.
 
+## Job closures and isolation
+
+`Job.run`'s task closure runs in its own `Task`. Because `task:` is
+`sending` ([SE-0430](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0430-transferring-parameters-and-results.md)),
+the closure can capture non-`Sendable` values at the call site —
+including `self` of a SwiftUI `View`, whose property wrappers usually
+make the enclosing struct non-`Sendable`. Region-based isolation
+accepts the closure's disconnected copy of the captured values.
+
+Capture whatever's needed — a `Sendable` service, `self`'s init-time
+`let` properties, a value-type input. What to avoid inside the closure
+body:
+
+- Reading or mutating `@State`, `@Query` results, or `@Environment`
+  values. Those wrappers are `@MainActor`-isolated; the closure runs
+  in the `Task`'s own isolation region.
+- Assuming the `Task` runs on the main actor — it does not. Hop back
+  with `await MainActor.run { ... }` if you need to mutate `@MainActor`
+  state after the await point.
+
+```swift
+// ✅ Capture self; read stable init-time `let` properties.
+.task {
+    metadataJob.run { try await client.fetchMetadata(book.id) }
+}
+
+// ✅ Equivalent; explicit capture for readability.
+.task {
+    let client = client
+    let id = book.id
+    metadataJob.run { try await client.fetchMetadata(id) }
+}
+
+// ❌ Reads @Query / @State inside the Task — wrong isolation region,
+// stale reads at best, compile errors at worst.
+.task {
+    metadataJob.run {
+        let fav = favorites.contains { $0.bookID == book.id }
+        return try await client.fetchMetadata(for: book.id, favorited: fav)
+    }
+}
+```
+
 ## Session coordination
 
 Login, logout, and reauthentication require atomic coordination across
