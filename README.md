@@ -287,6 +287,22 @@ repo. Run `bin/install` in a consuming project to symlink it into
 `.claude/rules/splint.md`. Commit the symlink; updates propagate on
 `swift package update`.
 
+## Coverage
+
+`script/test` enforces 100% line coverage on the `Splint` target. This
+is a forcing function, not a metric: if a line can't be covered by a
+meaningful behavioural test, the line should be deleted, restructured
+to be testable, or tagged with an inline exclusion marker whose
+rationale (≥10 characters) names the specific reason:
+
+```swift
+foo()  // coverage:ignore — <why this line can't be exercised>
+```
+
+Blocks use `// coverage:ignore-start — <rationale>` and
+`// coverage:ignore-end`. Padding coverage with tests that exercise a
+line without verifying behaviour defeats the purpose.
+
 ## License
 
 MIT. See `LICENSE`.

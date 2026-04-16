@@ -1,8 +1,28 @@
 #!/usr/bin/env bash
-# prove_it: full test suite—runs before every git commit
-# Replace the test command below, or change the 'full-tests' command
-# in .claude/prove_it/config.json to point at your existing test runner.
-set -e
+# prove_it: full test suite — runs before every git commit.
+# Enforces 100% line coverage on the Splint target as a forcing function.
+# Override with SPLINT_COVERAGE_THRESHOLD=<n> (0-100). See README ## Coverage.
+set -euo pipefail
 trap 'rc=$?; command -v prove_it >/dev/null 2>&1 && prove_it record --name full-tests --result $rc' EXIT
 cd "$(dirname "$0")/.."
-swift test --parallel
+
+THRESHOLD="${SPLINT_COVERAGE_THRESHOLD:-100}"
+
+# Self-test the marker parser and coverage math before running the suite.
+# Fails fast if the gate tooling is broken without wasting a Swift build.
+python3 script/lib/coverage.py --self-test
+
+# Run instrumented tests. Not parallel: parallel + coverage historically
+# produces per-worker profraws that need merging.
+swift test --enable-code-coverage
+
+# Locate the profdata and test binary. swift test puts them here on Swift 6.x.
+PROFDATA="$(find .build -name default.profdata -path '*codecov*' | head -1)"
+BINARY="$(find .build -name 'SplintPackageTests' -type f -perm +111 | head -1)"
+[[ -f "$PROFDATA" ]] || { echo "error: default.profdata not found" >&2; exit 2; }
+[[ -x "$BINARY"  ]] || { echo "error: SplintPackageTests binary not found" >&2; exit 2; }
+
+# Export per-line coverage in lcov format (DA:line,count is authoritative)
+# and pipe through the coverage gate.
+xcrun llvm-cov export -format=lcov -instr-profile="$PROFDATA" "$BINARY" \
+  | python3 script/lib/coverage.py "$THRESHOLD"
