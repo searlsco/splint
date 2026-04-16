@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# agent: run Claude Code in dangerously autonomous mode
+set -e
+
+cd "$(dirname "$0")/.."
+
+exec claude --dangerously-skip-permissions "$@"

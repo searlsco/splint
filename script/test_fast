@@ -4,5 +4,6 @@
 # in .claude/prove_it/config.json to point at your existing test runner.
 set -e
 trap 'rc=$?; command -v prove_it >/dev/null 2>&1 && prove_it record --name fast-tests --result $rc' EXIT
-echo "No tests configured. Edit script/test_fast to run your fast (unit) tests."
-exit 1
+cd "$(dirname "$0")/.."
+# Fast subset: skip keychain-touching tests that invoke SecItem* syscalls.
+swift test --skip CredentialTests

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Release flow: bump version, update CHANGELOG, run tests, tag, push.
+#
+#   script/release <major|minor|patch>
+#
+# - Reads the current version from the latest bare-semver git tag (0.0.0
+#   if there is none).
+# - Rolls the [Unreleased] section of CHANGELOG.md into a dated version
+#   section.
+# - Runs script/test before tagging.
+# - Tags with bare semver (no `v` prefix) and pushes main + the tag.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+bump="${1:-}"
+case "$bump" in
+  major|minor|patch) ;;
+  *)
+    echo "usage: script/release <major|minor|patch>" >&2
+    exit 1
+    ;;
+esac
+
+# Refuse to release with an unclean tree.
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "error: working tree is not clean" >&2
+  exit 1
+fi
+
+current="$(git tag --list --sort=-v:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
+current="${current:-0.0.0}"
+
+IFS='.' read -r maj min pat <<<"$current"
+case "$bump" in
+  major) maj=$((maj + 1)); min=0; pat=0 ;;
+  minor) min=$((min + 1)); pat=0 ;;
+  patch) pat=$((pat + 1)) ;;
+esac
+next="$maj.$min.$pat"
+
+echo "Releasing $current -> $next"
+
+# Roll [Unreleased] -> [next] - YYYY-MM-DD in CHANGELOG.md.
+today="$(date +%Y-%m-%d)"
+if grep -q '^## \[Unreleased\]' CHANGELOG.md; then
+  # macOS / BSD sed: add a new Unreleased placeholder and rename the old one.
+  python3 - "$next" "$today" <<'PY'
+import sys, pathlib
+next_v, today = sys.argv[1], sys.argv[2]
+path = pathlib.Path("CHANGELOG.md")
+text = path.read_text()
+replacement = f"## [Unreleased]\n\n## [{next_v}] - {today}"
+text = text.replace("## [Unreleased]", replacement, 1)
+path.write_text(text)
+PY
+  git add CHANGELOG.md
+fi
+
+# Fail fast if tests don't pass.
+script/test
+
+if ! git diff --cached --quiet; then
+  git commit -m "Release $next"
+fi
+
+git tag "$next"
+git push origin HEAD
+git push origin "$next"
+
+echo "Released $next"

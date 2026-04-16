@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Lint Sources and Tests. Exits non-zero on violations.
+set -e
+cd "$(dirname "$0")/.."
+swift format lint --strict --recursive --configuration .swift-format Sources Tests
