@@ -278,6 +278,61 @@ var body: some View {
 Same rule as `Catalog`'s fetch closure: Splint closures capture at
 construction; mutable inputs flow through update methods.
 
+## Job closures and isolation
+
+`Job.run`'s task closure runs in its own `Task`. Because `task:` is
+`sending` ([SE-0430](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0430-transferring-parameters-and-results.md)),
+the closure can capture non-`Sendable` values at the call site —
+including `self` of a SwiftUI `View`, whose property wrappers usually
+make the enclosing struct non-`Sendable`. Region-based isolation
+accepts the closure's disconnected copy of the captured values.
+
+Capture whatever's needed — a `Sendable` service, `self`'s init-time
+`let` properties, a value-type input. What to avoid inside the closure
+body:
+
+- Reading `@State`, `@Query` results, or `@Environment` values from
+  inside the closure body. Even when the capture compiles, you get a
+  frozen snapshot taken when the closure was created — later wrapper
+  updates are invisible. Capture the specific IDs or scalars you need
+  at the call site instead.
+- Mutating `@MainActor` state directly. The `Task` runs off the main
+  actor, so the compiler usually blocks this. When you genuinely need
+  to mutate main-actor state after the `await`, hop back explicitly:
+
+```swift
+metadataJob.run {
+    let fresh = try await client.fetchMetadata(book.id)
+    await MainActor.run { cache[book.id] = fresh }
+    return fresh
+}
+```
+
+```swift
+// ✅ Capture self; read stable init-time `let` properties.
+.task {
+    metadataJob.run { try await client.fetchMetadata(book.id) }
+}
+
+// ✅ Equivalent; explicit capture for readability.
+.task {
+    let client = client
+    let id = book.id
+    metadataJob.run { try await client.fetchMetadata(id) }
+}
+
+// ❌ Reads @Query results inside the Task. `sending` may allow the
+// capture, but `favorites` is a snapshot frozen at closure creation —
+// later @Query updates never reach this closure. Pull what you need
+// out at the call site and pass it in as a scalar.
+.task {
+    metadataJob.run {
+        let fav = favorites.contains { $0.bookID == book.id }
+        return try await client.fetchMetadata(for: book.id, favorited: fav)
+    }
+}
+```
+
 ## Session coordination
 
 Login, logout, and reauthentication require atomic coordination across

@@ -11,6 +11,21 @@ extension Boom: LocalizedError {
   var errorDescription: String? { msg }
 }
 
+/// Intentionally non-`Sendable`: a reference type with a mutable stored
+/// property and no `Sendable` conformance. Under `@Sendable` this could
+/// not be captured by `Job.run`'s closure; `sending` transfers it safely.
+private final class NonSendableBox {
+  var value: Int = 42
+}
+
+/// A small `@MainActor`-isolated service, mirroring the real-world
+/// pattern of a view capturing an `@Environment` client and handing it
+/// to `Job.run`.
+@MainActor
+private final class FakeMainActorService {
+  func fetch() -> Int { 7 }
+}
+
 @MainActor
 @Suite("Job")
 struct JobTests {
@@ -126,5 +141,34 @@ struct JobTests {
     }
     #expect(job.value == 1)
     #expect(job.phase == .failed("later"))
+  }
+
+  /// Compile-guard for SE-0430: the `task:` parameter is `sending`, not
+  /// `@Sendable`. A non-`Sendable` reference captured into the closure
+  /// must compile here. The `#expect` is incidental — the load-bearing
+  /// assertion is that this file compiles at all. Reverting `sending` →
+  /// `@Sendable` on ``Job/run(priority:task:)`` would break compilation.
+  @Test("compile-guard: closure may capture non-Sendable value (sending)")
+  func compileGuardNonSendableCapture() async {
+    let box = NonSendableBox()
+    let job = Job<Int>()
+    job.run { box.value }
+    await waitUntil { job.phase == .completed }
+    #expect(job.value == 42)
+  }
+
+  /// Compile-guard for SE-0430: a `@MainActor`-isolated service
+  /// (analogous to an `@Environment` client in a SwiftUI view) can be
+  /// captured by the `sending` closure. The `#expect` is incidental —
+  /// the load-bearing assertion is that this file compiles.
+  /// `FakeMainActorService` is not `Sendable`; under `@Sendable` the
+  /// capture would fail.
+  @Test("compile-guard: closure may capture @MainActor service (sending)")
+  func compileGuardMainActorCapture() async {
+    let service = FakeMainActorService()
+    let job = Job<Int>()
+    job.run { await service.fetch() }
+    await waitUntil { job.phase == .completed }
+    #expect(job.value == 7)
   }
 }
