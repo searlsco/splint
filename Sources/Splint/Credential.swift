@@ -18,29 +18,46 @@ public struct Credential: Sendable {
   /// secrets.
   public let synchronizable: Bool
 
+  private let backend: any CredentialBackend
+
   public init(service: String, account: String, synchronizable: Bool = true) {
+    self.init(
+      service: service,
+      account: account,
+      synchronizable: synchronizable,
+      backend: SystemKeychainBackend()
+    )
+  }
+
+  /// Test-only init that accepts a backend stub. Public for cross-target
+  /// visibility under `@_spi(Testing)`; not part of the semver surface.
+  @_spi(Testing)
+  public init(
+    service: String,
+    account: String,
+    synchronizable: Bool,
+    backend: any CredentialBackend
+  ) {
     self.service = service
     self.account = account
     self.synchronizable = synchronizable
+    self.backend = backend
   }
 
   /// Error thrown on non-success, non-"not found" `SecItem*` status.
   public struct KeychainError: Error, CustomStringConvertible, Equatable {
     public let status: OSStatus
+    public init(status: OSStatus) { self.status = status }
     public var description: String { "KeychainError(status: \(status))" }
   }
 
   /// Read the current value, or `nil` if absent.
   public func read() throws -> String? {
-    var query = baseQuery()
-    query[kSecReturnData as String] = kCFBooleanTrue
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
-
-    var item: CFTypeRef?
-    let status = SecItemCopyMatching(query as CFDictionary, &item)
+    let (status, data) = backend.read(
+      service: service, account: account, synchronizable: synchronizable)
     switch status {
     case errSecSuccess:
-      guard let data = item as? Data else { return nil }
+      guard let data else { return nil }
       return String(data: data, encoding: .utf8)
     case errSecItemNotFound:
       return nil
@@ -54,17 +71,14 @@ public struct Credential: Sendable {
   /// creation date and can cause iCloud Keychain sync conflicts).
   public func save(_ value: String) throws {
     let data = Data(value.utf8)
-    var addQuery = baseQuery()
-    addQuery[kSecValueData as String] = data
-    addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-
-    let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+    let addStatus = backend.add(
+      service: service, account: account, synchronizable: synchronizable, data: data)
     switch addStatus {
     case errSecSuccess:
       return
     case errSecDuplicateItem:
-      let attrs: [String: Any] = [kSecValueData as String: data]
-      let updateStatus = SecItemUpdate(baseQuery() as CFDictionary, attrs as CFDictionary)
+      let updateStatus = backend.update(
+        service: service, account: account, synchronizable: synchronizable, data: data)
       guard updateStatus == errSecSuccess else {
         throw KeychainError(status: updateStatus)
       }
@@ -75,7 +89,8 @@ public struct Credential: Sendable {
 
   /// Delete the credential. Missing items are not an error.
   public func delete() throws {
-    let status = SecItemDelete(baseQuery() as CFDictionary)
+    let status = backend.delete(
+      service: service, account: account, synchronizable: synchronizable)
     switch status {
     case errSecSuccess, errSecItemNotFound:
       return
@@ -83,13 +98,64 @@ public struct Credential: Sendable {
       throw KeychainError(status: status)
     }
   }
+}
 
-  private func baseQuery() -> [String: Any] {
+/// Swappable backend for keychain operations. Not part of the semver
+/// surface — tests inject stubs via `@_spi(Testing)`; production code
+/// always uses ``SystemKeychainBackend``.
+@_spi(Testing)
+public protocol CredentialBackend: Sendable {
+  func read(service: String, account: String, synchronizable: Bool)
+    -> (status: OSStatus, data: Data?)
+  func add(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus
+  func update(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus
+  func delete(service: String, account: String, synchronizable: Bool) -> OSStatus
+}
+
+/// Real backend wrapping `SecItem*`. Hardcodes
+/// `kSecAttrAccessibleAfterFirstUnlock` because the OS default has
+/// changed across versions and agents tend to pick the wrong value.
+@_spi(Testing)
+public struct SystemKeychainBackend: CredentialBackend {
+  public init() {}
+
+  public func read(service: String, account: String, synchronizable: Bool)
+    -> (status: OSStatus, data: Data?)
+  {
+    var query = baseQuery(service: service, account: account, synchronizable: synchronizable)
+    query[kSecReturnData as String] = kCFBooleanTrue
+    query[kSecMatchLimit as String] = kSecMatchLimitOne
+    var item: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &item)
+    return (status, item as? Data)
+  }
+
+  public func add(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus {
+    var query = baseQuery(service: service, account: account, synchronizable: synchronizable)
+    query[kSecValueData as String] = data
+    query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+    return SecItemAdd(query as CFDictionary, nil)
+  }
+
+  public func update(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus
+  {
+    let query = baseQuery(service: service, account: account, synchronizable: synchronizable)
+    let attrs: [String: Any] = [kSecValueData as String: data]
+    return SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+  }
+
+  public func delete(service: String, account: String, synchronizable: Bool) -> OSStatus {
+    let query = baseQuery(service: service, account: account, synchronizable: synchronizable)
+    return SecItemDelete(query as CFDictionary)
+  }
+
+  private func baseQuery(service: String, account: String, synchronizable: Bool) -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
-      kSecAttrSynchronizable as String: synchronizable ? kCFBooleanTrue as Any : kCFBooleanFalse as Any,
+      kSecAttrSynchronizable as String: synchronizable
+        ? kCFBooleanTrue as Any : kCFBooleanFalse as Any,
     ]
   }
 }
