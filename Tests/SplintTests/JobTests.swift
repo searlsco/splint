@@ -145,9 +145,11 @@ struct JobTests {
 
   /// Compile-guard for SE-0430: the `task:` parameter is `sending`, not
   /// `@Sendable`. A non-`Sendable` reference captured into the closure
-  /// must compile here. This test would fail to compile if anyone
-  /// reverted `sending` → `@Sendable` on ``Job/run(priority:task:)``.
-  @Test func runAcceptsClosureCapturingNonSendableValue() async {
+  /// must compile here. The `#expect` is incidental — the load-bearing
+  /// assertion is that this file compiles at all. Reverting `sending` →
+  /// `@Sendable` on ``Job/run(priority:task:)`` would break compilation.
+  @Test("compile-guard: closure may capture non-Sendable value (sending)")
+  func compileGuardNonSendableCapture() async {
     let box = NonSendableBox()
     let job = Job<Int>()
     job.run { box.value }
@@ -157,9 +159,12 @@ struct JobTests {
 
   /// Compile-guard for SE-0430: a `@MainActor`-isolated service
   /// (analogous to an `@Environment` client in a SwiftUI view) can be
-  /// captured by the `sending` closure. Under `@Sendable` the capture
-  /// would fail — `FakeMainActorService` is not `Sendable`.
-  @Test func runAcceptsClosureCapturingMainActorService() async {
+  /// captured by the `sending` closure. The `#expect` is incidental —
+  /// the load-bearing assertion is that this file compiles.
+  /// `FakeMainActorService` is not `Sendable`; under `@Sendable` the
+  /// capture would fail.
+  @Test("compile-guard: closure may capture @MainActor service (sending)")
+  func compileGuardMainActorCapture() async {
     let service = FakeMainActorService()
     let job = Job<Int>()
     job.run { await service.fetch() }

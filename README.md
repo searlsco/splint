@@ -291,12 +291,22 @@ Capture whatever's needed — a `Sendable` service, `self`'s init-time
 `let` properties, a value-type input. What to avoid inside the closure
 body:
 
-- Reading or mutating `@State`, `@Query` results, or `@Environment`
-  values. Those wrappers are `@MainActor`-isolated; the closure runs
-  in the `Task`'s own isolation region.
-- Assuming the `Task` runs on the main actor — it does not. Hop back
-  with `await MainActor.run { ... }` if you need to mutate `@MainActor`
-  state after the await point.
+- Reading `@State`, `@Query` results, or `@Environment` values from
+  inside the closure body. Even when the capture compiles, you get a
+  frozen snapshot taken when the closure was created — later wrapper
+  updates are invisible. Capture the specific IDs or scalars you need
+  at the call site instead.
+- Mutating `@MainActor` state directly. The `Task` runs off the main
+  actor, so the compiler usually blocks this. When you genuinely need
+  to mutate main-actor state after the `await`, hop back explicitly:
+
+```swift
+metadataJob.run {
+    let fresh = try await client.fetchMetadata(book.id)
+    await MainActor.run { cache[book.id] = fresh }
+    return fresh
+}
+```
 
 ```swift
 // ✅ Capture self; read stable init-time `let` properties.
@@ -311,8 +321,10 @@ body:
     metadataJob.run { try await client.fetchMetadata(id) }
 }
 
-// ❌ Reads @Query / @State inside the Task — wrong isolation region,
-// stale reads at best, compile errors at worst.
+// ❌ Reads @Query results inside the Task. `sending` may allow the
+// capture, but `favorites` is a snapshot frozen at closure creation —
+// later @Query updates never reach this closure. Pull what you need
+// out at the call site and pass it in as a scalar.
 .task {
     metadataJob.run {
         let fav = favorites.contains { $0.bookID == book.id }
