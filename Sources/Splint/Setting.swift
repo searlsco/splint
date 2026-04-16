@@ -55,21 +55,7 @@ public final class Setting<Value: SettingValue> {
     self.write = write
     self.value = read(store, key) ?? defaultValue
     self.observer = SettingObserver()
-    // All stored properties are now initialized; safe to capture
-    // `self` and register with the store.
-    self.observer.onChange = { [weak self] in
-      // KVO fires on whatever thread performed the write (or a
-      // background queue for cross-process `userdefaultsd`
-      // callbacks), so we always hop to the main actor.
-      DispatchQueue.main.async {
-        MainActor.assumeIsolated {
-          self?._applyExternalChange()
-        }
-      }
-    }
-    // Do NOT pass `.initial` — `init` already seeded `value` by
-    // reading the store directly above.
-    store.addObserver(self.observer, forKeyPath: key, options: [.new], context: nil)
+    installObserver()
   }
 
   /// Internal designated init used by the `RawRepresentable` extension.
@@ -88,21 +74,32 @@ public final class Setting<Value: SettingValue> {
     self.write = write
     self.value = read(store, key) ?? defaultValue
     self.observer = SettingObserver()
-    // All stored properties are now initialized; safe to capture
-    // `self` and register with the store.
-    self.observer.onChange = { [weak self] in
+    installObserver()
+  }
+
+  /// Wire the KVO bridge. Called from every designated init once all
+  /// stored properties are initialized, so it's safe to capture `self`
+  /// and register with the store.
+  private func installObserver() {
+    observer.onChange = { [weak self] in
       // KVO fires on whatever thread performed the write (or a
       // background queue for cross-process `userdefaultsd`
       // callbacks), so we always hop to the main actor.
+      //
+      // `DispatchQueue.main.async` (not `Task { @MainActor in … }`) is
+      // load-bearing: the test suite drains the main queue with a
+      // FIFO sentinel, which relies on dispatch ordering that Tasks
+      // do not guarantee. Don't "modernize" this without also
+      // replacing the test drain.
       DispatchQueue.main.async {
         MainActor.assumeIsolated {
           self?._applyExternalChange()
         }
       }
     }
-    // Do NOT pass `.initial` — `init` already seeded `value` by
-    // reading the store directly above.
-    store.addObserver(self.observer, forKeyPath: key, options: [.new], context: nil)
+    // Do NOT pass `.initial` — each init already seeded `value` by
+    // reading the store directly.
+    store.addObserver(observer, forKeyPath: key, options: [.new], context: nil)
   }
 
   nonisolated deinit {
