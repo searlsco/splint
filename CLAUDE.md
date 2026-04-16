@@ -31,13 +31,13 @@ satisfy when they're created, not a map of what already exists.
 
 ## Platforms
 
-Supported: **macOS, iOS, tvOS, watchOS, visionOS, and Linux.**
+Supported: **macOS, iOS, tvOS, watchOS, visionOS.**
 
-**Hard rule:** drop Linux the moment it costs a single line of platform-shim
-code. Linux support is a free byproduct of being a pure-Swift library — not a
-goal worth compromising the code for. If a `#if os(Linux)` branch or a
-Foundation-compat workaround is ever needed, remove Linux from the platform
-list in the same commit.
+Linux was considered and dropped: `Credential.swift` imports `Security`,
+which is Apple-only. Per the original hard rule — drop Linux the moment
+it costs a single line of platform-shim code — Linux is out and
+`.spi.yml`, CI, and this file all agree. Revisit only if the Keychain
+dependency ever moves behind an optional target.
 
 Consumers don't get deployment-target restrictions beyond what's declared in
 `Package.swift`. The `platforms:` list only *customizes* deployment targets;
@@ -133,8 +133,8 @@ it doesn't gate where the package builds.
 ## CI
 
 - **GitHub Actions.** Workflows live in `.github/workflows/`.
-- **Matrix:** `macOS-latest` (Xcode 26.4) + `Ubuntu-latest`, one Swift
-  version.
+- **Matrix:** `macOS-latest` (Xcode 26.4), one Swift version. Linux is
+  not built (see Platforms above).
 - Workflows invoke `script/test` rather than duplicating commands — the
   script is the single source of truth for what "pass" means locally and in
   CI.
