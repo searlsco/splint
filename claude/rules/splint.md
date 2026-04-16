@@ -12,7 +12,9 @@ inventing a new type.
   Criteria is always an `Equatable & Sendable` struct — even a single-field
   one. For the genuinely parameter-free case, `Catalog<Item, NoCriteria>`.
 - **Filtered or sorted view** over a Catalog → `Lens<Item>`. It derives;
-  it does not fetch. Multiple lenses can share one catalog.
+  it does not fetch. Multiple lenses can share one catalog. Filter/sort
+  closures capture once at construction — drive mutable filter inputs
+  through `updateFilter`/`updateSort` from `.onChange(of:)`.
 - **Async operation lifecycle** (a fetch, a save, a one-off call) →
   `Job<Value>`. Not `isLoading` + `error` + `data` as separate booleans.
 - **Selected item identifier** → `Selection<ID>`. One per selectable
