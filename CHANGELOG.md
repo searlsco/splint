@@ -12,4 +12,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Initial public API: `Resource`, `Catalog`, `Lens`, `Job`, `Phase`,
   `Selection`, `Setting`, `SettingValue`, `Credential`, `NoCriteria`.
 - Agent rules at `claude/rules/splint.md`.
-- `bin/install` symlinker for consuming projects.
+- README install instructions for dropping `claude/rules/splint.md`
+  into a consuming project via `curl`.
