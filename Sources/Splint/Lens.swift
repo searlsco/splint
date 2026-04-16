@@ -22,7 +22,11 @@ public final class Lens<Item: Resource> {
   @ObservationIgnored private var order: (@Sendable (Item, Item) -> Bool)?
   public init<Criteria: Equatable & Sendable>(
     source: Catalog<Item, Criteria>,
+    /// Predicate applied to each item. Captured once at init; re-runs only
+    /// when `updateFilter` is called. Do not capture mutable view state —
+    /// drive `updateFilter` from `.onChange(of:)` instead.
     filter: @escaping @Sendable (Item) -> Bool = { _ in true },
+    /// Comparator applied after filtering. Same capture rules as `filter`.
     sort: (@Sendable (Item, Item) -> Bool)? = nil
   ) {
     self.sourceItems = { source.items }
