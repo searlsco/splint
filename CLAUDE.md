@@ -24,10 +24,16 @@ satisfy when they're created, not a map of what already exists.
 
 ## Toolchain
 
-- **Floor: Xcode 26.4+ / Swift 6.x.** Brand-new project, audience is Justin,
-  latest toolchain only. No accommodations for older Xcode or Swift versions.
-  Use macros, swift-testing, strict concurrency, and any other modern
-  features without apology.
+- **Local floor: Xcode 26.4+ / Swift 6.x.** Brand-new project, audience is
+  Justin, latest toolchain only. No accommodations for older Xcode or Swift
+  versions. Use macros, swift-testing, strict concurrency, and any other
+  modern features without apology.
+- **CI floor: whatever's on `macos-latest`.** GitHub's hosted runner image
+  lags Apple releases by a few weeks. Pin CI to the newest Xcode the runner
+  ships (currently 26.3); deployment targets in `Package.swift` must stay
+  buildable against that runner's SDK ceiling (currently 26.2). Bump both
+  in lockstep when the runner image catches up — the local floor can move
+  faster, but the package itself stays buildable on CI.
 
 ## Platforms
 
@@ -133,8 +139,9 @@ it doesn't gate where the package builds.
 ## CI
 
 - **GitHub Actions.** Workflows live in `.github/workflows/`.
-- **Matrix:** `macOS-latest` (Xcode 26.4), one Swift version. Linux is
-  not built (see Platforms above).
+- **Matrix:** `macOS-latest` (Xcode 26.3 — newest available on the runner
+  image; see Toolchain), one Swift version. Linux is not built (see
+  Platforms above).
 - Workflows invoke `script/test` rather than duplicating commands — the
   script is the single source of truth for what "pass" means locally and in
   CI.
