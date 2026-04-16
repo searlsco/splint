@@ -1,14 +1,11 @@
 {
   "enabled": true,
   "sources": [
-    "**/*.*",
-    "!**/*.{md,txt}",
-    "replace/these/with/globs/of/your/source/and/test/files.*"
+    "**/*.swift"
   ],
   "tests": [
-    "**/*.{test,spec}.*",
-    "**/*_{test,spec}.*",
-    "**/{test,tests,spec,specs,__tests__}/**/*.*"
+    "Tests/**/*.swift",
+    "Example/BookshelfTests/**/*.swift"
   ],
   "hooks": {
     "claude": {
