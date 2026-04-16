@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Nuke local build artifacts.
+set -e
+cd "$(dirname "$0")/.."
+rm -rf .build Package.resolved .swiftpm/docc-build
+echo "cleaned"

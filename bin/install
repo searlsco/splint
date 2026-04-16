@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Symlinks Splint's agent rules file into the consuming project's
+# .claude/rules/ directory. Run once per project after
+# `swift package resolve`.
+#
+#   .build/checkouts/splint/bin/install
+#
+# The symlink is relative and survives package updates: future
+# `swift package update` runs refresh the target automatically.
+
+set -euo pipefail
+
+# Resolve the directory that contains this script (bin/) and the repo
+# root that contains claude/rules/splint.md.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+splint_root="$(cd "$script_dir/.." && pwd)"
+rules_source="$splint_root/claude/rules/splint.md"
+
+if [[ ! -f "$rules_source" ]]; then
+  echo "error: $rules_source not found" >&2
+  exit 1
+fi
+
+# The consumer's project root is the current working directory when the
+# script is invoked. Expect a .build/checkouts/splint layout.
+consumer_root="$PWD"
+if [[ ! -d "$consumer_root/.build/checkouts/splint" ]]; then
+  cat >&2 <<'EOF'
+error: .build/checkouts/splint not found.
+
+Run `swift package resolve` in the consuming project before invoking
+this script. Splint must be declared as a dependency in Package.swift.
+EOF
+  exit 1
+fi
+
+target_dir="$consumer_root/.claude/rules"
+target="$target_dir/splint.md"
+link_source=".build/checkouts/splint/claude/rules/splint.md"
+
+mkdir -p "$target_dir"
+
+# Replace an existing splint.md symlink; refuse to clobber a regular file.
+if [[ -L "$target" ]]; then
+  rm "$target"
+elif [[ -e "$target" ]]; then
+  echo "error: $target exists and is not a symlink. Remove it and re-run." >&2
+  exit 1
+fi
+
+# Relative symlink so it resolves for every collaborator. From
+# $consumer/.claude/rules/ up two levels to $consumer, then into .build.
+ln -s "../../$link_source" "$target"
+echo "Linked $target -> ../../$link_source"

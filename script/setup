@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Fresh-clone bootstrap. Verifies the Swift toolchain can build Splint.
+set -e
+cd "$(dirname "$0")/.."
+
+required_major=6
+required_minor=3
+
+version_line="$(swift --version 2>/dev/null | head -1)"
+if [[ -z "$version_line" ]]; then
+  echo "error: swift not on PATH. Install Xcode 26.4+." >&2
+  exit 1
+fi
+
+echo "$version_line"
+
+if ! swift --version | grep -Eq "Swift version ${required_major}\.([${required_minor}-9]|[1-9][0-9])"; then
+  echo "warning: Splint requires Swift ${required_major}.${required_minor}+." >&2
+fi
+
+swift package resolve
+swift build
+echo "setup: ok"

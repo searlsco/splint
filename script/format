@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Format Sources and Tests in place.
+set -e
+cd "$(dirname "$0")/.."
+swift format --in-place --recursive --configuration .swift-format Sources Tests

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Local DocC preview for the Splint target.
+set -e
+cd "$(dirname "$0")/.."
+swift package --disable-sandbox preview-documentation --target Splint
