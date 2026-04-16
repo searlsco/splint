@@ -209,7 +209,9 @@ init(client: BookClient) {
 }
 ```
 
-No singletons, no late-binding, no service locators.
+No singletons, no late-binding, no service locators. The same rule
+applies to `Lens` filter/sort closures — see "Lens closures capture
+once" below.
 
 ## Narrowly-scoped catalogs over client-side filtering
 
@@ -248,6 +250,33 @@ items change — O(n) where n is the source size. Under ~1k items this is
 negligible. For larger datasets, consider whether filtering belongs in
 the fetch closure (server-side filtering via `Criteria`) rather than in
 a client-side `Lens`.
+
+## Lens closures capture once
+
+`Lens` captures `filter` and `sort` at init. They re-run only on
+`updateFilter` / `updateSort` — not when variables they reference
+change. Capturing mutable view state at init compiles and looks
+correct, and fails silently:
+
+```swift
+// ❌ minRating capture goes stale — Lens never sees changes
+@State private var minRating = 0
+@State private var lens = Lens(source: catalog, filter: { $0.rating >= minRating })
+
+// ✅ Drive updates explicitly
+@State private var minRating = 0
+@State private var lens = Lens(source: catalog)
+
+var body: some View {
+    BookListView(lens: lens)
+        .onChange(of: minRating) { _, new in
+            lens.updateFilter { $0.rating >= new }
+        }
+}
+```
+
+Same rule as `Catalog`'s fetch closure: Splint closures capture at
+construction; mutable inputs flow through update methods.
 
 ## Session coordination
 
