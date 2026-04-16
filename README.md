@@ -288,6 +288,21 @@ on the authenticated root view and destroyed on logout. Splint types
 (`Credential`, `Setting`, `Catalog`) are the *fields* it coordinates,
 not a replacement for the coordinator itself.
 
+## Settings sync across instances and processes
+
+`Setting` observes its key via `UserDefaults` key-value observation, so:
+
+- **Multiple instances on the same key stay in sync.** Two `Setting`s
+  bound to the same key/store see each other's writes automatically.
+  No "single owner per key" convention required — instance count is a
+  perf footnote, not a correctness concern.
+- **App Group suites sync across processes.** A `Setting` backed by
+  `UserDefaults(suiteName: "group.example.shared")` stays in sync
+  between the host app and its extensions (widgets, intents, share
+  extensions). This is Apple's `userdefaultsd` behavior for
+  entitlement-granted App Groups, surfaced through standard KVO —
+  Splint adds no code of its own for cross-process notification.
+
 ## What Splint won't fix
 
 Splint addresses data structure. It does not address SwiftUI rendering
