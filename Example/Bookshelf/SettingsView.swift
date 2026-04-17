@@ -9,6 +9,7 @@ public struct SettingsView: View {
   @Environment(\.showCoversSetting) private var showCovers
   @Environment(\.preferredGenreSetting) private var preferredGenre
   @Environment(\.bookCatalog) private var catalog
+  @Environment(\.apiCredentialStatus) private var apiCredentialStatus
 
   public init() {}
 
@@ -42,7 +43,46 @@ public struct SettingsView: View {
           }
         }
       }
+      Section("API") {
+        if let apiCredentialStatus {
+          APITokenRow(status: apiCredentialStatus)
+        }
+      }
     }
     .navigationTitle("Settings")
+  }
+}
+
+/// Demonstrates `Credential` as a device-local keychain round-trip. Holds a
+/// transient `draft` so the `SecureField` doesn't bind to the saved value.
+private struct APITokenRow: View {
+  let status: CredentialStatus
+  @State private var draft = ""
+
+  var body: some View {
+    SecureField("API token", text: $draft)
+    HStack {
+      Button("Save") {
+        status.save(draft)
+        draft = ""
+      }
+      .disabled(draft.isEmpty)
+      Button("Clear", role: .destructive) {
+        status.clear()
+      }
+      .disabled(status.state == .notSet)
+    }
+    Text(statusText)
+      .font(.footnote)
+      .foregroundStyle(.secondary)
+  }
+
+  private var statusText: String {
+    switch status.state {
+    case .unknown: return "…"
+    case .saved: return "Saved"
+    case .notSet: return "Not set"
+    case .error(let message): return "Error: \(message)"
+    }
   }
 }
