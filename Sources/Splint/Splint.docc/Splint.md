@@ -26,27 +26,41 @@ observation. Pass model instances directly to child views.
 
 ## Topics
 
+### Core concepts
+
+- <doc:ChoosingTheRightType>
+- <doc:ObservationBoundaries>
+
 ### Modeling remote data
 
+- <doc:ResourceGuide>
 - ``Resource``
+- <doc:CatalogGuide>
 - ``Catalog``
 - ``NoCriteria``
 
 ### Deriving views over a Catalog
 
+- <doc:LensGuide>
 - ``Lens``
 
 ### Async operation lifecycle
 
+- <doc:PhaseGuide>
 - ``Phase``
+- <doc:JobGuide>
 - ``Job``
 
 ### User-facing state
 
+- <doc:SelectionGuide>
 - ``Selection``
+- <doc:SettingGuide>
 - ``Setting``
+- <doc:SettingValueGuide>
 - ``SettingValue``
 
 ### Secrets
 
+- <doc:CredentialGuide>
 - ``Credential``
