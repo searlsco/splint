@@ -189,6 +189,7 @@ all invoke the same thing.
 |---|---|
 | `script/test` | Full test run + coverage gate. Invoked by CI and by `prove_it`. Enforces 100% line coverage on `Sources/Splint/` via `script/lib/coverage.py`. |
 | `script/test_fast` | Quick-feedback subset used during the inner TDD loop. Skips `CredentialTests` (real keychain). No coverage gate — that lives on `script/test`. |
+| `script/benchmark` | Runs every suite under `Benchmarks/` and gates on committed `Thresholds/` via [ordo-one/package-benchmark](https://github.com/ordo-one/package-benchmark). Env-var-gates the dev dep (`SPLINT_BENCHMARK=1`) so consumers don't resolve it. Not part of `script/test`. |
 | `script/format` | `swift format --in-place --recursive Sources Tests` — mutates. |
 | `script/lint` | `swift format lint --strict --recursive Sources Tests` — non-mutating; exits non-zero on violations. |
 | `script/release <major\|minor\|patch>` | Bumps version, updates CHANGELOG, tags (bare semver), pushes. Invoked by the release Claude skill. |
