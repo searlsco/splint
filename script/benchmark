@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Run all benchmark targets and fail if any metric breaches its
+# committed threshold. Benchmarks live in Benchmarks/<Target>/ and are
+# env-var-gated: setting SPLINT_BENCHMARK=1 adds the package-benchmark
+# dependency and benchmark executable target to Package.swift at
+# resolve time. Consumers of Splint never see the dep.
+#
+# Bootstrap (one time, before thresholds exist):
+#   brew install jemalloc
+#   SPLINT_BENCHMARK=1 swift package \
+#     --allow-writing-to-package-directory benchmark thresholds update
+#   git add Thresholds/
+#
+# Regression gate (this script):
+#   runs the suite, then `thresholds check` exits non-zero per
+#   package-benchmark conventions (2=regression, 4=improvements).
+set -euo pipefail
+trap 'rc=$?; command -v prove_it >/dev/null 2>&1 && prove_it record --name benchmark --result $rc' EXIT
+cd "$(dirname "$0")/.."
+
+export SPLINT_BENCHMARK=1
+
+# jemalloc is required by package-benchmark's mallocCountTotal metric on
+# macOS. Detect early with a clear install hint instead of failing deep
+# inside a release build with a C-header-not-found error.
+if [[ "$(uname -s)" == "Darwin" ]] && ! brew list jemalloc >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+error: jemalloc is required by package-benchmark but is not installed.
+  brew install jemalloc
+EOF
+  exit 2
+fi
+
+# Announce each benchmark target about to run. Discovered from the
+# filesystem so adding a new suite under Benchmarks/ doesn't require
+# editing this script.
+shopt -s nullglob
+for dir in Benchmarks/*/; do
+  target="$(basename "$dir")"
+  echo "==> ${target}"
+done
+
+# Full benchmark run — markdown format for readable output. `|| true`
+# because the headline verdict comes from `thresholds check` below; a
+# transient measurement hiccup shouldn't mask the regression signal.
+swift package benchmark --format markdown || true
+
+# The regression gate. Exits non-zero on threshold overrun.
+exec swift package benchmark thresholds check
