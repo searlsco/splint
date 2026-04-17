@@ -8,7 +8,8 @@ import Observation
 /// The source catalog's `Criteria` type is erased at init: call sites see
 /// `Lens<Channel>`, not `Lens<Channel, ProviderCriteria>`.
 ///
-/// **Performance.** `recompute()` is O(n) in the source size. Under ~1k
+/// **Performance.** `recompute()` is O(n) for the filter pass plus
+/// O(n log n) for the sort (stdlib introsort) when one is set. Under ~1k
 /// items this is negligible; for larger datasets, prefer server-side
 /// filtering via the catalog's `Criteria` over a client-side `Lens`.
 @Observable
