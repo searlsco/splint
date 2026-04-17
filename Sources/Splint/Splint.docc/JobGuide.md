@@ -22,7 +22,7 @@ let metadataJob = Job<Metadata>()
 
 ## Closures and isolation
 
-``Job/run(_:)``'s task closure runs in its own `Task`. Because the
+``Job/run(priority:task:)``'s task closure runs in its own `Task`. Because the
 parameter is `sending`
 ([SE-0430](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0430-transferring-parameters-and-results.md)),
 the closure can capture non-`Sendable` values at the call site —
