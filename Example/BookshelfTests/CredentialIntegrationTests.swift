@@ -60,6 +60,24 @@ struct CredentialIntegrationTests {
       Issue.record("expected .error state, got \(String(describing: status.state))")
     }
   }
+
+  @Test func refreshSurfacesBackendErrorsInState() {
+    let backend = FailingBackend(readStatus: errSecAuthFailed)
+    let (status, _) = makeStatus(backend: backend)
+    status.refresh()
+    if case .error = status.state { /* ok */ } else {
+      Issue.record("expected .error state, got \(String(describing: status.state))")
+    }
+  }
+
+  @Test func clearSurfacesBackendErrorsInState() {
+    let backend = FailingBackend(deleteStatus: errSecAuthFailed)
+    let (status, _) = makeStatus(backend: backend)
+    status.clear()
+    if case .error = status.state { /* ok */ } else {
+      Issue.record("expected .error state, got \(String(describing: status.state))")
+    }
+  }
 }
 
 // MARK: - Test backends
@@ -102,17 +120,20 @@ private final class InMemoryBackend: CredentialBackend, @unchecked Sendable {
 }
 
 private struct FailingBackend: CredentialBackend {
+  var readStatus: OSStatus = errSecItemNotFound
   var addStatus: OSStatus = errSecSuccess
+  var updateStatus: OSStatus = errSecSuccess
+  var deleteStatus: OSStatus = errSecSuccess
   func read(service: String, account: String, synchronizable: Bool)
     -> (status: OSStatus, data: Data?)
-  { (errSecItemNotFound, nil) }
+  { (readStatus, nil) }
   func add(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus {
     addStatus
   }
   func update(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus {
-    errSecSuccess
+    updateStatus
   }
   func delete(service: String, account: String, synchronizable: Bool) -> OSStatus {
-    errSecSuccess
+    deleteStatus
   }
 }
