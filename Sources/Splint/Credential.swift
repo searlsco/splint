@@ -52,7 +52,10 @@ public struct Credential: Sendable {
   }
 
   /// Read the current value, or `nil` if absent.
-  public func read() throws -> String? {
+  ///
+  /// - Throws: ``KeychainError`` when `SecItemCopyMatching` returns a
+  ///   non-success, non-"not found" status.
+  public func read() throws(KeychainError) -> String? {
     let (status, data) = backend.read(
       service: service, account: account, synchronizable: synchronizable)
     switch status {
@@ -69,7 +72,10 @@ public struct Credential: Sendable {
   /// Save the value. Creates the item if absent, updates it in place if
   /// present. Does NOT delete-then-add (which would churn the item's
   /// creation date and can cause iCloud Keychain sync conflicts).
-  public func save(_ value: String) throws {
+  ///
+  /// - Throws: ``KeychainError`` when either the add or the fallback
+  ///   update returns a non-success status.
+  public func save(_ value: String) throws(KeychainError) {
     let data = Data(value.utf8)
     let addStatus = backend.add(
       service: service, account: account, synchronizable: synchronizable, data: data)
@@ -88,7 +94,10 @@ public struct Credential: Sendable {
   }
 
   /// Delete the credential. Missing items are not an error.
-  public func delete() throws {
+  ///
+  /// - Throws: ``KeychainError`` when `SecItemDelete` returns a
+  ///   non-success, non-"not found" status.
+  public func delete() throws(KeychainError) {
     let status = backend.delete(
       service: service, account: account, synchronizable: synchronizable)
     switch status {
