@@ -39,6 +39,12 @@ xcrun llvm-cov export -format=lcov -instr-profile="$PROFDATA" "$BINARY" \
 # Runs locally on any Xcode 26.4 machine (which matches its runtime).
 if [[ "${CI:-}" == "true" ]]; then
   echo "script/test: CI environment — skipping Example test suite (SwiftUI runtime compat; see script comment)"
+  # Canary: when macos-latest catches up to 26.2+, nag to remove this guard.
+  # Check at https://github.com/actions/runner-images/releases for upgrades.
+  runner_os="$(sw_vers -productVersion 2>/dev/null || echo 0.0)"
+  if [[ "$(printf '%s\n%s\n' '26.2' "$runner_os" | sort -V | head -1)" == "26.2" ]]; then
+    echo "::warning::runner macOS $runner_os is ≥ 26.2 — the Example-tests CI skip in script/test may no longer be needed; try removing the \$CI guard"
+  fi
 else
   (cd Example && swift test)
 fi
