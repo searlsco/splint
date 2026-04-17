@@ -26,3 +26,9 @@ BINARY="$(find .build -name 'SplintPackageTests' -type f -perm +111 | head -1)"
 # and pipe through the coverage gate.
 xcrun llvm-cov export -format=lcov -instr-profile="$PROFDATA" "$BINARY" \
   | python3 script/lib/coverage.py "$THRESHOLD"
+
+# Example app: compile BookshelfApp (via .executableTarget) and run the
+# swift-testing suite. No coverage gate — the 100% threshold scopes to
+# Sources/Splint/ only (see CLAUDE.md). This catches example bitrot in
+# CI; the .xcodeproj is the runnable entry point for humans.
+(cd Example && swift test)
