@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Splint
+@_spi(Internal) @testable import Splint
 
 struct TestItem: Resource {
   let id: Int
@@ -180,12 +180,13 @@ struct CatalogTests {
     }
     c.load(TestCriteria(category: "1"))
     await waitUntil { c.phase == .running }
+    let task1 = c.currentTask
     c.load(TestCriteria(category: "2"))
-    await waitUntil { c.phase == .completed }
+    await c.currentTask?.value
     #expect(c.items.first?.name == "2")
-    // Let the first (cancelled) task wake up — it must NOT overwrite items.
+    // Let the first (superseded) task wake up — it must NOT overwrite items.
     await gate.open()
-    try? await Task.sleep(for: .milliseconds(50))
+    await task1?.value
     #expect(c.items.first?.name == "2")
   }
 
