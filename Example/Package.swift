@@ -1,16 +1,17 @@
-// swift-tools-version: 6.3
+// swift-tools-version: 6.2
 import PackageDescription
 
-// Bookshelf is Splint's example app. It is wired up as a Swift package
-// for `swift build` reachability in CI and local tooling. To run the
-// app, open this directory in Xcode 26.4+ and use the `BookshelfApp`
-// scheme (Xcode will generate an iOS app target automatically from the
-// Swift package product when the `App` scene is present).
+// Bookshelf is Splint's example app. This Swift package exists so
+// `swift test` exercises BookshelfTests from `script/test` and CI;
+// the `.executableTarget` shape lets `@main BookshelfApp` compile.
+// SPM cannot produce a runnable `.app` bundle (no Info.plist, no
+// bundle identifier), so to *run* the app on Mac or iOS Simulator,
+// open `Example/Bookshelf.xcodeproj`.
 let package = Package(
   name: "Bookshelf",
   platforms: [
-    .iOS("26.4"),
-    .macOS("26.4"),
+    .iOS("26.2"),
+    .macOS("26.2"),
   ],
   products: [
     .executable(name: "Bookshelf", targets: ["Bookshelf"])
