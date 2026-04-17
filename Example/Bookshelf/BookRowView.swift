@@ -32,7 +32,7 @@ public struct BookRowView: View {
       if isFavorite { Image(systemName: "heart.fill").foregroundStyle(.pink) }
     }
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(book.title), by \(book.author)")
+    .accessibilityLabel("\(book.title), by \(book.author)\(isFavorite ? ", favorited" : "")")
   }
 }
 

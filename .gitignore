@@ -4,3 +4,11 @@ DerivedData/
 *.xcodeproj
 Package.resolved
 .DS_Store
+
+# Example app's Xcode project is committed — it's the runnable entry
+# point (SPM cannot produce a runnable .app bundle). User-specific UI
+# state stays out.
+!Example/Bookshelf.xcodeproj
+Example/Bookshelf.xcodeproj/xcuserdata/
+Example/Bookshelf.xcodeproj/project.xcworkspace/xcuserdata/
+Example/Bookshelf.xcodeproj/**/*.xcuserstate
