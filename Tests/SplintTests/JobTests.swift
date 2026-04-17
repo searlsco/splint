@@ -143,6 +143,18 @@ struct JobTests {
     #expect(job.phase == .failed("later"))
   }
 
+  /// Proves the `priority:` argument is forwarded to the underlying
+  /// `Task(priority:)`. `.background` is used because it sits far below
+  /// the `@MainActor` context's inherited QoS — observing it inside the
+  /// task can only happen if the parameter actually reached
+  /// `Task(priority:)`.
+  @Test func runForwardsPriorityToUnderlyingTask() async {
+    let job = Job<TaskPriority>()
+    job.run(priority: .background) { Task.currentPriority }
+    await waitUntil { job.phase == .completed }
+    #expect(job.value == .background)
+  }
+
   /// Compile-guard for SE-0430: the `task:` parameter is `sending`, not
   /// `@Sendable`. A non-`Sendable` reference captured into the closure
   /// must compile here. The `#expect` is incidental — the load-bearing
