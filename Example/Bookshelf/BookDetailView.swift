@@ -33,7 +33,7 @@ public struct BookDetailView: View {
       Section("Metadata") {
         switch metadataJob.phase {
         case .idle, .running:
-          ProgressView()
+          ProgressView("Loading metadata…")
         case .completed:
           if let m = metadataJob.value {
             Text(m.description)

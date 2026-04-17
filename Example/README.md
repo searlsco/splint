@@ -1,19 +1,29 @@
 # Bookshelf — Splint example app
 
-A reading-list app that exercises every Splint type. This folder is a
-self-contained Swift package so `swift build` and `swift test` work
-from here for CI and local verification:
+A reading-list app that exercises every Splint type.
+
+## Running the app
+
+Open `Bookshelf.xcodeproj` in Xcode 26.4+ and pick a destination:
+
+- **iOS Simulator** — any iPhone or iPad sim.
+- **My Mac** — runs as a native macOS app.
+
+The scheme signs to run locally (no development team required).
+
+## Running the tests
+
+`Example/` doubles as a Swift package so `swift test` exercises
+`BookshelfTests` without opening Xcode. `script/test` at the repo
+root runs this suite alongside the library's own tests:
 
 ```sh
 cd Example
 swift test
 ```
 
-It is declared as an `.executableTarget` so `BookshelfApp`'s `@main`
-compiles and links. To run the iOS app, open `Example/Package.swift`
-in Xcode 26.4+ and choose the iOS simulator as the destination — Xcode
-will treat the executable target as an iOS app because the `App` scene
-is declared.
+The `.xcodeproj` and the `Package.swift` both reference the same
+source files — there's no duplication.
 
 ## What it demonstrates
 

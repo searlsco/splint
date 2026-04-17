@@ -14,7 +14,6 @@ public struct ContentView: View {
   @State private var selection = Selection<String>()
   @State private var showCovers = Setting<Bool>("showCovers", default: true)
   @State private var preferredGenre = Setting<String>("preferredGenre", default: "All")
-  @State private var path = NavigationPath()
 
   public init(client: BookClient) {
     self.client = client
@@ -26,15 +25,14 @@ public struct ContentView: View {
 
   public var body: some View {
     TabView {
-      NavigationStack(path: $path) {
+      NavigationSplitView {
         BookListView()
-          .navigationDestination(for: String.self) { bookID in
-            if let book = catalog[id: bookID] {
-              BookDetailView(book: book, client: client)
-            } else {
-              ContentUnavailableView("Not found", systemImage: "questionmark")
-            }
-          }
+      } detail: {
+        if let id = selection.current, let book = catalog[id: id] {
+          BookDetailView(book: book, client: client)
+        } else {
+          ContentUnavailableView("Pick a book", systemImage: "books.vertical")
+        }
       }
       .tabItem { Label("Books", systemImage: "books.vertical") }
 
@@ -57,7 +55,12 @@ public struct ContentView: View {
     .task {
       catalog.load(BookCriteria(libraryID: "main"))
     }
-    .onChange(of: preferredGenre.value) { _, new in
+    // `initial: true` is load-bearing: `Setting` reads from UserDefaults
+    // at init, so on any relaunch after the user picked a non-"All"
+    // genre the Picker reads e.g. "Fiction" but `genreLens` still has
+    // its default all-true filter. Firing onChange once on appear
+    // seeds the lens from the persisted Setting.
+    .onChange(of: preferredGenre.value, initial: true) { _, new in
       genreLens.updateFilter { book in
         new == "All" || book.genre == new
       }
