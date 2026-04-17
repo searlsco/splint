@@ -1,4 +1,4 @@
-// swift-tools-version: 6.3
+// swift-tools-version: 6.2
 import PackageDescription
 
 // Bookshelf is Splint's example app. This Swift package exists so
@@ -10,8 +10,8 @@ import PackageDescription
 let package = Package(
   name: "Bookshelf",
   platforms: [
-    .iOS("26.4"),
-    .macOS("26.4"),
+    .iOS("26.2"),
+    .macOS("26.2"),
   ],
   products: [
     .executable(name: "Bookshelf", targets: ["Bookshelf"])
