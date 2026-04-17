@@ -35,6 +35,13 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
 
   @ObservationIgnored private let fetch: @Sendable (Criteria) async throws -> [Item]
   @ObservationIgnored private var task: Task<Void, Never>?
+  @ObservationIgnored private var fetchGeneration: UInt64 = 0
+
+  /// Underlying task for the most recent fetch. Exposed to tests so
+  /// they can synchronize deterministically on fetch completion instead
+  /// of polling ``phase``.
+  @_spi(Internal)
+  public var currentTask: Task<Void, Never>? { task }
 
   public init(fetch: @escaping @Sendable (Criteria) async throws -> [Item]) {
     self.fetch = fetch
@@ -73,17 +80,19 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
 
   private func performFetch(_ criteria: Criteria) {
     task?.cancel()
+    fetchGeneration &+= 1
+    let myGeneration = fetchGeneration
     phase = .running
     task = Task { [weak self, fetch] in
       do {
         let fetched = try await fetch(criteria)
-        guard !Task.isCancelled else { return }
-        self?.items = fetched
-        self?.lastLoaded = .now
-        self?.phase = .completed
+        guard let self, self.fetchGeneration == myGeneration else { return }
+        self.items = fetched
+        self.lastLoaded = .now
+        self.phase = .completed
       } catch {
-        guard !Task.isCancelled else { return }
-        self?.phase = .failed(error.localizedDescription)
+        guard let self, self.fetchGeneration == myGeneration else { return }
+        self.phase = .failed(error.localizedDescription)
       }
     }
   }
