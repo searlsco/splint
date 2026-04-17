@@ -87,7 +87,7 @@ private struct APITokenRow: View {
     HStack {
       Button("Save") {
         status.save(draft)
-        draft = ""
+        if status.state == .saved { draft = "" }
         announce(SettingsView.statusText(for: status.state))
       }
       .disabled(draft.isEmpty)
