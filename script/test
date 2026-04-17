@@ -29,6 +29,16 @@ xcrun llvm-cov export -format=lcov -instr-profile="$PROFDATA" "$BINARY" \
 
 # Example app: compile BookshelfApp (via .executableTarget) and run the
 # swift-testing suite. No coverage gate — the 100% threshold scopes to
-# Sources/Splint/ only (see CLAUDE.md). This catches example bitrot in
-# CI; the .xcodeproj is the runnable entry point for humans.
-(cd Example && swift test)
+# Sources/Splint/ only (see CLAUDE.md). The .xcodeproj is the runnable
+# entry point for humans.
+#
+# Skipped in CI: Xcode 26.3's SDK emits SwiftUI internal symbols (e.g.
+# `_TagTraitWritingModifier`) that only exist in macOS 26.2+ SwiftUI
+# runtime, and GitHub's macos-latest runner is on an older OS. Root
+# Splint tests don't use SwiftUI so they link cleanly; Example does.
+# Runs locally on any Xcode 26.4 machine (which matches its runtime).
+if [[ "${CI:-}" == "true" ]]; then
+  echo "script/test: CI environment — skipping Example test suite (SwiftUI runtime compat; see script comment)"
+else
+  (cd Example && swift test)
+fi
