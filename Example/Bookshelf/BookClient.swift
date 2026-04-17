@@ -1,4 +1,5 @@
 import Foundation
+import Splint
 
 /// Injected API. A closure struct — no protocol, no DI container, no
 /// singleton. `.mock` returns hardcoded books after a short delay so the
@@ -35,8 +36,34 @@ extension BookClient {
     }
   )
 
-  /// Placeholder "real" client — wire in a URLSession here in a real app.
-  public static let live = mock
+  /// "Real" client shape — reads the keychain-backed API token on every
+  /// call (not cached) to prove `Credential` composes with request-time
+  /// auth. The response body is still mocked because the example app has
+  /// no network dependency; a production client would attach `token` to
+  /// an `Authorization` header on a real `URLRequest` here.
+  public static let live = BookClient(
+    fetchBooks: { _ in
+      _ = try? Credential(
+        service: bookshelfCredentialService,
+        account: bookshelfCredentialAccount,
+        synchronizable: false
+      ).read()
+      try? await Task.sleep(for: .milliseconds(50))
+      return sampleBooks
+    },
+    fetchMetadata: { id in
+      _ = try? Credential(
+        service: bookshelfCredentialService,
+        account: bookshelfCredentialAccount,
+        synchronizable: false
+      ).read()
+      try? await Task.sleep(for: .milliseconds(50))
+      return BookMetadata(
+        description: "A fine book about \(id).",
+        pageCount: 200 + (abs(id.hashValue) % 400)
+      )
+    }
+  )
 
   static let sampleBooks: [Book] = [
     Book(id: "1", title: "The Pragmatic Programmer", author: "Hunt & Thomas", genre: "Nonfiction", year: 1999),
