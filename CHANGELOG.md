@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-04-17
+
 ### Added
 
 - Initial public API: `Resource`, `Catalog`, `Lens`, `Job`, `Phase`,
