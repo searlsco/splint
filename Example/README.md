@@ -36,7 +36,7 @@ source files — there's no duplication.
 | `Selection<String>` | Active book id, bound to `List(selection:)` |
 | `Setting<Bool>` | `"showCovers"` toggle |
 | `Setting<String>` | `"preferredGenre"` filter, persisted across launches |
-| `Credential` | (Not surfaced in UI; `BookClient.live` can read an API token) |
+| `Credential` | Settings → API: save/clear a device-local token; `BookClient.live` reads it per request |
 | `@Model` + `@Query` | `Favorite` — SwiftData, joined to the `Catalog` by id |
 
 ## What it does *not* demonstrate

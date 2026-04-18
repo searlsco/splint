@@ -14,6 +14,13 @@ public struct ContentView: View {
   @State private var selection = Selection<String>()
   @State private var showCovers = Setting<Bool>("showCovers", default: true)
   @State private var preferredGenre = Setting<String>("preferredGenre", default: "All")
+  @State private var apiCredentialStatus = CredentialStatus(
+    credential: Credential(
+      service: bookshelfCredentialService,
+      account: bookshelfCredentialAccount,
+      synchronizable: false
+    )
+  )
 
   public init(client: BookClient) {
     self.client = client
@@ -52,7 +59,9 @@ public struct ContentView: View {
     .environment(\.bookSelection, selection)
     .environment(\.showCoversSetting, showCovers)
     .environment(\.preferredGenreSetting, preferredGenre)
+    .environment(\.apiCredentialStatus, apiCredentialStatus)
     .task {
+      apiCredentialStatus.refresh()
       catalog.load(BookCriteria(libraryID: "main"))
     }
     // `initial: true` is load-bearing: `Setting` reads from UserDefaults
