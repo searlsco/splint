@@ -95,7 +95,7 @@ private struct APITokenRow: View {
         status.clear()
         announce(SettingsView.statusText(for: status.state))
       }
-      .disabled(status.state == .notSet)
+      .disabled(!status.canClear)
     }
   }
 

@@ -23,6 +23,15 @@ public final class CredentialStatus {
   public private(set) var state: State = .unknown
   public let credential: Credential
 
+  /// `true` only when a value is known to be stored. Views should gate
+  /// destructive actions (like "Clear") on this so we never try to
+  /// delete from the `.unknown` pre-refresh state or the `.notSet`
+  /// state, both of which would produce no-op or error output.
+  public var canClear: Bool {
+    if case .saved = state { return true }
+    return false
+  }
+
   public init(credential: Credential) {
     self.credential = credential
   }

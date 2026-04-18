@@ -23,6 +23,24 @@ struct CredentialIntegrationTests {
     return (CredentialStatus(credential: cred), backend)
   }
 
+  @Test func canClearIsFalseInUnknownState() {
+    let (status, _) = makeStatus()
+    // State is .unknown until refresh() runs.
+    #expect(status.canClear == false)
+  }
+
+  @Test func canClearIsFalseAfterRefreshWithNoStoredToken() {
+    let (status, _) = makeStatus()
+    status.refresh()
+    #expect(status.canClear == false)
+  }
+
+  @Test func canClearIsTrueAfterSave() {
+    let (status, _) = makeStatus()
+    status.save("secret-token")
+    #expect(status.canClear == true)
+  }
+
   @Test func refreshWithNoStoredTokenReportsNotSet() {
     let (status, _) = makeStatus()
     status.refresh()
