@@ -29,10 +29,15 @@ struct CredentialIntegrationTests {
     #expect(status.state == .notSet)
   }
 
-  @Test func saveThenRefreshReportsSaved() {
+  @Test func saveReportsSaved() {
     let (status, _) = makeStatus()
     status.save("secret-token")
     #expect(status.state == .saved)
+  }
+
+  @Test func refreshAfterSaveReportsSaved() {
+    let (status, _) = makeStatus()
+    status.save("secret-token")
     status.refresh()
     #expect(status.state == .saved)
   }
@@ -44,12 +49,11 @@ struct CredentialIntegrationTests {
     #expect(status.state == .notSet)
   }
 
-  @Test func saveOverwritesPreviousValue() {
-    let backend = InMemoryBackend()
-    let (status, _) = makeStatus(backend: backend)
+  @Test func saveOverwritesPreviousValue() throws {
+    let (status, _) = makeStatus()
     status.save("first")
     status.save("second")
-    #expect(backend.currentValue() == "second")
+    #expect(try status.credential.read() == "second")
   }
 
   @Test func saveSurfacesBackendErrorsInState() {
@@ -88,9 +92,6 @@ private final class InMemoryBackend: CredentialBackend, @unchecked Sendable {
   private var storage: [String: Data] = [:]
   private func key(_ service: String, _ account: String, _ sync: Bool) -> String {
     "\(service)|\(account)|\(sync)"
-  }
-  func currentValue() -> String? {
-    storage.values.first.flatMap { String(data: $0, encoding: .utf8) }
   }
   func read(service: String, account: String, synchronizable: Bool)
     -> (status: OSStatus, data: Data?)
