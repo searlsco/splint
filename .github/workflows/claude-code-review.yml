@@ -58,7 +58,7 @@ jobs:
             echo "::warning::No execution_file output from claude-review; skipping gate"
             exit 0
           fi
-          RESULT=$(jq -r '.result // ""' "$FILE")
+          RESULT=$(jq -r 'map(select(.type == "result")) | .[0].result // ""' "$FILE")
           echo "Claude review result:"
           echo "$RESULT"
           if echo "$RESULT" | grep -qiE "[1-9][0-9]* issues? found"; then
