@@ -2,6 +2,8 @@
 
 [![Certified Shovelware](https://justin.searls.co/img/shovelware.svg)](https://justin.searls.co/shovelware/)
 
+Learn Splint interactively: [Naming the Shapes](https://artifact.land/@scott/naming-the-shapes-1) on artifact.land.
+
 Named data types for SwiftUI apps. Splint is a small library that gives
 every data shape in your app a name — so that an agent (or anyone else)
 reaching for a value reaches for the right kind of value. It is
