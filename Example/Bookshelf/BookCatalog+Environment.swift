@@ -13,4 +13,5 @@ extension EnvironmentValues {
   @Entry public var bookSelection: Selection<String>? = nil
   @Entry public var showCoversSetting: Setting<Bool>? = nil
   @Entry public var preferredGenreSetting: Setting<String>? = nil
+  @Entry public var apiCredentialStatus: CredentialStatus? = nil
 }
