@@ -29,11 +29,22 @@ You are about to cut a release. Follow these steps exactly.
    - Tag the commit with bare semver (no `v` prefix).
    - Push `main` and the tag.
 
-3. After the script succeeds, report the new version to the user and
-   remind them that Swift Package Index will pick the tag up on its
-   next crawl.
+3. After the script succeeds, the `Create GitHub Release` workflow
+   (`.github/workflows/release.yml`) fires on the tag push and creates a
+   GitHub Release with auto-generated notes. Verify it:
 
-4. If any step fails, STOP. Do not retry blindly. Surface the error and
+   ```bash
+   gh run list --workflow "Create GitHub Release" --limit 1
+   gh release view <next>
+   ```
+
+   Wait for the run to show `completed success` and confirm the release
+   page exists.
+
+4. Report the new version to the user and remind them that Swift Package
+   Index will pick the tag up on its next crawl.
+
+5. If any step fails, STOP. Do not retry blindly. Surface the error and
    let the user decide whether to re-run or investigate.
 
 ## Do not
