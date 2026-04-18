@@ -44,3 +44,25 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
+      # The code-review plugin exits 0 regardless of findings by design —
+      # see https://code.claude.com/docs/en/code-review ("never blocks
+      # merging through branch protection rules"). We want the check to
+      # fail if any issues were flagged, so parse the plugin's final
+      # result text out of the execution file and fail on a non-zero
+      # issue count.
+      - name: Fail if review flagged issues
+        if: always() && steps.claude-review.outcome == 'success'
+        run: |
+          FILE="${{ steps.claude-review.outputs.execution_file }}"
+          if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
+            echo "::warning::No execution_file output from claude-review; skipping gate"
+            exit 0
+          fi
+          RESULT=$(jq -r '.result // ""' "$FILE")
+          echo "Claude review result:"
+          echo "$RESULT"
+          if echo "$RESULT" | grep -qiE "[1-9][0-9]* issues? found"; then
+            echo "::error::Claude Code Review flagged issues — see PR comment"
+            exit 1
+          fi
+
