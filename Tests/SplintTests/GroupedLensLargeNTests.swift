@@ -19,13 +19,15 @@ struct GroupedLensLargeNTests {
 
   private func waitUntil(
     timeout: Duration = .seconds(2),
-    _ condition: () -> Bool
+    _ condition: () -> Bool,
+    sourceLocation: SourceLocation = #_sourceLocation
   ) async {
     let deadline = ContinuousClock.now.advanced(by: timeout)
     while ContinuousClock.now < deadline {
       if condition() { return }
       try? await Task.sleep(for: .milliseconds(5))
     }
+    #expect(condition(), "waitUntil timed out after \(timeout)", sourceLocation: sourceLocation)
   }
 
   private func loadedCatalog(_ items: [TestItem]) async -> Catalog<TestItem, TestCriteria> {
