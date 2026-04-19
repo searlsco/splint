@@ -2,35 +2,36 @@ import SwiftData
 import SwiftUI
 import Splint
 
-/// Lists books at the intersection of two lenses on the same catalog —
-/// `searchLens` (title/author substring) and `genreLens` (preferred
-/// genre). The combination of `List(selection:)` + `NavigationLink(value:)`
-/// is Apple's canonical NavigationSplitView pattern: selection drives the
-/// detail column on regular widths, NavigationLink provides the push +
-/// chevron affordance on iPhone compact.
+/// Renders the Bookshelf list from a single ``GroupedLens``. When the
+/// toolbar grouping menu is set to `.none`, the body reads
+/// `displayLens.items` directly; when set to `.author` or `.genre`, it
+/// reads `displayLens.groups` and renders a sectioned `List`. The
+/// search query and preferred genre both compose into the same
+/// `updateFilter` call on the same lens — one list, one lens.
 public struct BookListView: View {
   @Environment(\.bookCatalog) private var catalog
-  @Environment(\.searchLens) private var searchLens
-  @Environment(\.genreLens) private var genreLens
+  @Environment(\.displayLens) private var displayLens
   @Environment(\.bookSelection) private var selection
   @Environment(\.showCoversSetting) private var showCovers
   @Query(sort: \Favorite.dateAdded) private var favorites: [Favorite]
 
-  @State private var query: String = ""
+  @Binding var query: String
+  @State private var grouping: Grouping = .none
 
-  public init() {}
-
-  private var visibleBooks: [Book] {
-    guard let searchLens, let genreLens else { return [] }
-    return Self.intersection(search: searchLens.items, genre: genreLens.items)
+  enum Grouping: String, CaseIterable, Identifiable {
+    case none, author, genre
+    var id: String { rawValue }
+    var label: String {
+      switch self {
+      case .none: "None"
+      case .author: "Author"
+      case .genre: "Genre"
+      }
+    }
   }
 
-  /// Intersection of two lens projections by `id`. Extracted for
-  /// testability — exercises the `Set`-based O(n) lookup and the
-  /// boundary cases (either lens empty).
-  static func intersection(search: [Book], genre: [Book]) -> [Book] {
-    let genreIDs = Set(genre.map(\.id))
-    return search.filter { genreIDs.contains($0.id) }
+  public init(query: Binding<String>) {
+    self._query = query
   }
 
   public var body: some View {
@@ -38,45 +39,76 @@ public struct BookListView: View {
       get: { selection?.current },
       set: { selection?.current = $0 }
     )) {
-      ForEach(visibleBooks) { book in
-        NavigationLink(value: book.id) {
-          BookRowView(
-            book: book,
-            isFavorite: favorites.contains { $0.bookID == book.id },
-            showCover: showCovers?.value ?? true
-          )
+      if grouping == .none {
+        ForEach(displayLens?.items ?? []) { book in
+          row(for: book)
+        }
+      } else {
+        ForEach(displayLens?.groups ?? [], id: \.category) { group in
+          Section(group.category) {
+            ForEach(group.items) { book in row(for: book) }
+          }
         }
       }
     }
-    .overlay {
-      if visibleBooks.isEmpty {
-        switch catalog?.phase {
-        case .idle, .running, nil:
-          ProgressView("Loading books…")
-        case .completed:
-          ContentUnavailableView(
-            "No Books",
-            systemImage: "books.vertical",
-            description: Text("Try a different search or genre.")
-          )
-        case .failed(let message):
-          ContentUnavailableView(
-            "Couldn't load books",
-            systemImage: "exclamationmark.triangle",
-            description: Text(message)
-          )
-        }
-      }
-    }
+    .overlay { emptyStateOverlay }
     .searchable(text: $query)
-    .onChange(of: query) { _, new in
-      let needle = new.lowercased()
-      searchLens?.updateFilter { book in
-        needle.isEmpty
-          || book.title.lowercased().contains(needle)
-          || book.author.lowercased().contains(needle)
+    .toolbar {
+      ToolbarItem {
+        Menu {
+          Picker("Group by", selection: $grouping) {
+            ForEach(Grouping.allCases) { option in
+              Text(option.label).tag(option)
+            }
+          }
+        } label: {
+          Label("Group by", systemImage: "square.stack.3d.up")
+        }
+        .accessibilityLabel("Group by")
       }
     }
+    .onChange(of: grouping) { _, new in applyGrouping(new) }
     .navigationTitle("Bookshelf")
+  }
+
+  private func row(for book: Book) -> some View {
+    NavigationLink(value: book.id) {
+      BookRowView(
+        book: book,
+        isFavorite: favorites.contains { $0.bookID == book.id },
+        showCover: showCovers?.value ?? true
+      )
+    }
+  }
+
+  @ViewBuilder
+  private var emptyStateOverlay: some View {
+    let items = displayLens?.items ?? []
+    if items.isEmpty {
+      switch catalog?.phase {
+      case .idle, .running, nil:
+        ProgressView("Loading books…")
+      case .completed:
+        ContentUnavailableView(
+          "No Books",
+          systemImage: "books.vertical",
+          description: Text("Try a different search or genre.")
+        )
+      case .failed(let message):
+        ContentUnavailableView(
+          "Couldn't load books",
+          systemImage: "exclamationmark.triangle",
+          description: Text(message)
+        )
+      }
+    }
+  }
+
+  private func applyGrouping(_ g: Grouping) {
+    switch g {
+    case .none: displayLens?.updateCategories(nil)
+    case .author: displayLens?.updateCategories { $0.author }
+    case .genre: displayLens?.updateCategories { $0.genre }
+    }
   }
 }

@@ -71,5 +71,15 @@ extension BookClient {
     Book(id: "3", title: "Refactoring", author: "Martin Fowler", genre: "Nonfiction", year: 1999),
     Book(id: "4", title: "Annihilation", author: "Jeff VanderMeer", genre: "Fiction", year: 2014),
     Book(id: "5", title: "The Design of Everyday Things", author: "Don Norman", genre: "Nonfiction", year: 1988),
+    Book(id: "6", title: "The Dark Forest", author: "Liu Cixin", genre: "Fiction", year: 2008),
+    Book(id: "7", title: "Death's End", author: "Liu Cixin", genre: "Fiction", year: 2010),
+    Book(id: "8", title: "Authority", author: "Jeff VanderMeer", genre: "Fiction", year: 2014),
+    Book(id: "9", title: "Acceptance", author: "Jeff VanderMeer", genre: "Fiction", year: 2014),
+    Book(id: "10", title: "Working Effectively with Legacy Code", author: "Michael Feathers", genre: "Nonfiction", year: 2004),
+    Book(id: "11", title: "Growing Object-Oriented Software", author: "Freeman & Pryce", genre: "Nonfiction", year: 2009),
+    Book(id: "12", title: "The Mythical Man-Month", author: "Fred Brooks", genre: "Nonfiction", year: 1975),
+    Book(id: "13", title: "A Memory Called Empire", author: "Arkady Martine", genre: "Fiction", year: 2019),
+    Book(id: "14", title: "A Desolation Called Peace", author: "Arkady Martine", genre: "Fiction", year: 2021),
+    Book(id: "15", title: "Piranesi", author: "Susanna Clarke", genre: "Fiction", year: 2020),
   ]
 }
