@@ -29,19 +29,6 @@ private final class FakeMainActorService {
 @MainActor
 @Suite("Job")
 struct JobTests {
-  /// Poll until `condition` returns true or timeout elapses. Yields
-  /// cooperatively so that @MainActor Task updates can land.
-  private func waitUntil(
-    timeout: Duration = .seconds(2),
-    _ condition: () -> Bool
-  ) async {
-    let deadline = ContinuousClock.now.advanced(by: timeout)
-    while ContinuousClock.now < deadline {
-      if condition() { return }
-      try? await Task.sleep(for: .milliseconds(5))
-    }
-  }
-
   @Test func runTransitionsPhaseIdleToCompleted() async {
     let job = Job<Int>()
     #expect(job.phase == .idle)
