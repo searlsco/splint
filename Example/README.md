@@ -31,7 +31,7 @@ source files — there's no duplication.
 |------|-------|
 | `Resource` | `Book` — immutable value, decoded (in this example: fixtures) |
 | `Catalog<Book, BookCriteria>` | Owned by `ContentView` via `@State`, distributed via `.environment()` |
-| `Lens<Book>` | `searchLens` (title/author substring) and `genreLens` (by preferred genre) |
+| `GroupedLens<Book, String>` | `displayLens` — composite filter (search + preferred genre) with optional grouping by author or genre |
 | `Job<BookMetadata>` | `@State` in `BookDetailView` — fetches extended metadata on demand |
 | `Selection<String>` | Active book id, bound to `List(selection:)` |
 | `Setting<Bool>` | `"showCovers"` toggle |

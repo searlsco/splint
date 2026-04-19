@@ -15,6 +15,7 @@ Splint names them:
 - ``Resource`` — decoded remote data (channels, books, EPG entries)
 - ``Catalog`` — an ordered collection of Resources loaded by criteria
 - ``Lens`` — a filtered/sorted view over a Catalog
+- ``GroupedLens`` — a filtered/sorted view + cached grouped sections
 - ``Job`` — an async operation lifecycle
 - ``Selection`` — the currently selected item identifier
 - ``Setting`` — a single typed user preference (UserDefaults-backed)
@@ -43,6 +44,8 @@ observation. Pass model instances directly to child views.
 
 - <doc:LensGuide>
 - ``Lens``
+- <doc:GroupedLensGuide>
+- ``GroupedLens``
 
 ### Async operation lifecycle
 

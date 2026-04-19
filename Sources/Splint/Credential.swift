@@ -146,8 +146,7 @@ public struct SystemKeychainBackend: CredentialBackend {
     return SecItemAdd(query as CFDictionary, nil)
   }
 
-  public func update(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus
-  {
+  public func update(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus {
     let query = baseQuery(service: service, account: account, synchronizable: synchronizable)
     let attrs: [String: Any] = [kSecValueData as String: data]
     return SecItemUpdate(query as CFDictionary, attrs as CFDictionary)

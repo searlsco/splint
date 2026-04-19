@@ -6,8 +6,8 @@ import Splint
 @MainActor
 @Suite("Bookshelf view-logic composition")
 struct ViewLogicTests {
-  private func book(_ id: String, genre: String) -> Book {
-    Book(id: id, title: "T\(id)", author: "A", genre: genre, year: 2020)
+  private func book(_ id: String, title: String = "T", author: String = "A", genre: String) -> Book {
+    Book(id: id, title: title, author: author, genre: genre, year: 2020)
   }
 
   private func waitUntil(
@@ -21,36 +21,75 @@ struct ViewLogicTests {
     }
   }
 
-  // MARK: - visibleBooks intersection
+  // MARK: - displayLens: combined search + genre filter
 
-  @Test func intersectionKeepsOnlyBooksInBothLenses() {
-    let f = book("f", genre: "Fiction")
-    let n = book("n", genre: "Nonfiction")
-    #expect(
-      BookListView.intersection(search: [f, n], genre: [f]).map(\.id) == ["f"]
+  @Test func displayLensFiltersBySearchAndGenreTogether() async {
+    let books = [
+      book("1", title: "Pragmatic Programmer", genre: "Nonfiction"),
+      book("2", title: "Annihilation", genre: "Fiction"),
+      book("3", title: "Authority", genre: "Fiction"),
+    ]
+    let catalog = Catalog<Book, BookCriteria> { _ in books }
+    catalog.load(BookCriteria(libraryID: "main"))
+    await waitUntil { catalog.phase == .completed }
+    let lens = GroupedLens<Book, String>(source: catalog)
+
+    // Composite filter matches what ContentView.applyFilter installs.
+    lens.updateFilter { b in
+      b.genre == "Fiction" && b.title.lowercased().contains("author")
+    }
+
+    #expect(lens.items.map(\.id) == ["3"])
+  }
+
+  // MARK: - grouping via displayLens
+
+  @Test func groupingByAuthorProducesOneGroupPerDistinctAuthor() async {
+    let books = [
+      book("1", author: "Lopez", genre: "X"),
+      book("2", author: "Carr", genre: "X"),
+      book("3", author: "Lopez", genre: "X"),
+      book("4", author: "Abrams", genre: "X"),
+    ]
+    let catalog = Catalog<Book, BookCriteria> { _ in books }
+    catalog.load(BookCriteria(libraryID: "main"))
+    await waitUntil { catalog.phase == .completed }
+    let lens = GroupedLens<Book, String>(
+      source: catalog,
+      categorize: { $0.author }
     )
+    #expect(lens.groups.map(\.category) == ["Abrams", "Carr", "Lopez"])
+    #expect(lens.groups.first { $0.category == "Lopez" }?.items.count == 2)
   }
 
-  @Test func intersectionWhenGenreLensIsEmpty() {
-    let a = book("a", genre: "X")
-    #expect(BookListView.intersection(search: [a], genre: []).isEmpty)
+  @Test func groupingNoneLeavesGroupsEmpty() async {
+    let books = [book("1", genre: "X")]
+    let catalog = Catalog<Book, BookCriteria> { _ in books }
+    catalog.load(BookCriteria(libraryID: "main"))
+    await waitUntil { catalog.phase == .completed }
+    let lens = GroupedLens<Book, String>(source: catalog)
+    #expect(lens.groups.isEmpty)
+    #expect(lens.items.count == 1)
   }
 
-  @Test func intersectionWhenSearchLensIsEmpty() {
-    let a = book("a", genre: "X")
-    #expect(BookListView.intersection(search: [], genre: [a]).isEmpty)
-  }
+  @Test func togglingGroupingKeepsItemsStable() async {
+    let books = [
+      book("1", author: "A", genre: "X"),
+      book("2", author: "B", genre: "Y"),
+    ]
+    let catalog = Catalog<Book, BookCriteria> { _ in books }
+    catalog.load(BookCriteria(libraryID: "main"))
+    await waitUntil { catalog.phase == .completed }
+    let lens = GroupedLens<Book, String>(source: catalog)
+    let idsBeforeGrouping = lens.items.map(\.id)
 
-  @Test func intersectionWhenBothLensesAreEmpty() {
-    #expect(BookListView.intersection(search: [], genre: []).isEmpty)
-  }
+    lens.updateCategories { $0.author }
+    #expect(!lens.groups.isEmpty)
+    #expect(lens.items.map(\.id) == idsBeforeGrouping)
 
-  @Test func intersectionPreservesSearchLensOrder() {
-    let a = book("a", genre: "X")
-    let b = book("b", genre: "X")
-    let c = book("c", genre: "X")
-    let result = BookListView.intersection(search: [c, a, b], genre: [a, b, c])
-    #expect(result.map(\.id) == ["c", "a", "b"])
+    lens.updateCategories(nil)
+    #expect(lens.groups.isEmpty)
+    #expect(lens.items.map(\.id) == idsBeforeGrouping)
   }
 
   // MARK: - genres clamp
@@ -97,9 +136,6 @@ struct ViewLogicTests {
     defer { store.removePersistentDomain(forName: suite) }
     store.set("Fiction", forKey: "preferredGenre")
 
-    // Simulate what ContentView does with `.onChange(initial: true)`:
-    // read the Setting's current value (now "Fiction" from UserDefaults)
-    // and apply it to the lens as the initial filter.
     let setting = Setting<String>("preferredGenre", default: "All", store: store)
     #expect(setting.value == "Fiction")
 
@@ -107,7 +143,7 @@ struct ViewLogicTests {
     catalog.load(BookCriteria(libraryID: "main"))
     await waitUntil { catalog.phase == .completed }
 
-    let lens = Lens<Book>(source: catalog)
+    let lens = GroupedLens<Book, String>(source: catalog)
     let current = setting.value
     lens.updateFilter { book in current == "All" || book.genre == current }
 
@@ -119,7 +155,6 @@ struct ViewLogicTests {
     let suite = "BookshelfTests.ViewLogicTests.\(UUID().uuidString)"
     let store = UserDefaults(suiteName: suite)!
     defer { store.removePersistentDomain(forName: suite) }
-    // No value set → Setting falls back to default "All".
     let setting = Setting<String>("preferredGenre", default: "All", store: store)
     #expect(setting.value == "All")
 
@@ -127,7 +162,7 @@ struct ViewLogicTests {
     catalog.load(BookCriteria(libraryID: "main"))
     await waitUntil { catalog.phase == .completed }
 
-    let lens = Lens<Book>(source: catalog)
+    let lens = GroupedLens<Book, String>(source: catalog)
     let current = setting.value
     lens.updateFilter { book in current == "All" || book.genre == current }
 
