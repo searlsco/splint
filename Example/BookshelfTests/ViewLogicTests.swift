@@ -64,6 +64,25 @@ struct ViewLogicTests {
     #expect(lens.groups.first { $0.category == "Lopez" }?.items.count == 2)
   }
 
+  @Test func groupingByGenreProducesOneGroupPerDistinctGenre() async {
+    let books = [
+      book("1", author: "A", genre: "Fiction"),
+      book("2", author: "B", genre: "Nonfiction"),
+      book("3", author: "C", genre: "Fiction"),
+      book("4", author: "D", genre: "Biography"),
+    ]
+    let catalog = Catalog<Book, BookCriteria> { _ in books }
+    catalog.load(BookCriteria(libraryID: "main"))
+    await waitUntil { catalog.phase == .completed }
+    let lens = GroupedLens<Book, String>(
+      source: catalog,
+      categorize: { $0.genre }
+    )
+    #expect(lens.groups.map(\.category) == ["Biography", "Fiction", "Nonfiction"])
+    #expect(lens.groups.first { $0.category == "Fiction" }?.items.map(\.id).sorted() == ["1", "3"])
+    #expect(lens.groups.first { $0.category == "Biography" }?.items.map(\.id) == ["4"])
+  }
+
   @Test func groupingNoneLeavesGroupsEmpty() async {
     let books = [book("1", genre: "X")]
     let catalog = Catalog<Book, BookCriteria> { _ in books }
