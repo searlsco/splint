@@ -10,6 +10,13 @@ struct ViewLogicTests {
     Book(id: id, title: title, author: author, genre: genre, year: 2020)
   }
 
+  private func loadedBookCatalog(_ books: [Book]) async -> Catalog<Book, BookCriteria> {
+    let c = Catalog<Book, BookCriteria> { _ in books }
+    c.load(BookCriteria(libraryID: "main"))
+    await waitUntil { c.phase == .completed }
+    return c
+  }
+
   private func waitUntil(
     timeout: Duration = .seconds(2),
     _ condition: () -> Bool,
@@ -83,34 +90,41 @@ struct ViewLogicTests {
     #expect(lens.groups.first { $0.category == "Biography" }?.items.map(\.id) == ["4"])
   }
 
-  @Test func groupingNoneLeavesGroupsEmpty() async {
-    let books = [book("1", genre: "X")]
-    let catalog = Catalog<Book, BookCriteria> { _ in books }
-    catalog.load(BookCriteria(libraryID: "main"))
-    await waitUntil { catalog.phase == .completed }
+  @Test func groupingNilCategorizeLeavesGroupsEmpty() async {
+    let catalog = await loadedBookCatalog([book("1", genre: "X")])
     let lens = GroupedLens<Book, String>(source: catalog)
     #expect(lens.groups.isEmpty)
+  }
+
+  @Test func groupingNilCategorizeStillPopulatesItems() async {
+    let catalog = await loadedBookCatalog([book("1", genre: "X")])
+    let lens = GroupedLens<Book, String>(source: catalog)
     #expect(lens.items.count == 1)
   }
 
-  @Test func togglingGroupingKeepsItemsStable() async {
-    let books = [
+  @Test func enablingGroupingPreservesItems() async {
+    let catalog = await loadedBookCatalog([
       book("1", author: "A", genre: "X"),
       book("2", author: "B", genre: "Y"),
-    ]
-    let catalog = Catalog<Book, BookCriteria> { _ in books }
-    catalog.load(BookCriteria(libraryID: "main"))
-    await waitUntil { catalog.phase == .completed }
+    ])
     let lens = GroupedLens<Book, String>(source: catalog)
-    let idsBeforeGrouping = lens.items.map(\.id)
-
+    let idsBefore = lens.items.map(\.id)
     lens.updateCategories { $0.author }
-    #expect(!lens.groups.isEmpty)
-    #expect(lens.items.map(\.id) == idsBeforeGrouping)
+    #expect(lens.items.map(\.id) == idsBefore)
+  }
 
+  @Test func disablingGroupingPreservesItems() async {
+    let catalog = await loadedBookCatalog([
+      book("1", author: "A", genre: "X"),
+      book("2", author: "B", genre: "Y"),
+    ])
+    let lens = GroupedLens<Book, String>(
+      source: catalog,
+      categorize: { $0.author }
+    )
+    let idsBefore = lens.items.map(\.id)
     lens.updateCategories(nil)
-    #expect(lens.groups.isEmpty)
-    #expect(lens.items.map(\.id) == idsBeforeGrouping)
+    #expect(lens.items.map(\.id) == idsBefore)
   }
 
   // MARK: - genres clamp

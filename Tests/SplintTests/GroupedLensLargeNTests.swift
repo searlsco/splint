@@ -57,10 +57,12 @@ struct GroupedLensLargeNTests {
     }
   }
 
-  // Composition invariant: `recompute()` must invoke the categorizer
+  // Composition invariants: `recompute()` must invoke the categorizer
   // exactly once per item that passes the filter, per call. Guards a
-  // refactor that accidentally double-categorizes.
-  @Test func recomputeInvokesCategorizeExactlyOncePerFilteredItem() async {
+  // refactor that accidentally double-categorizes. Split by trigger so
+  // a failure identifies *which* recompute over-categorized.
+
+  @Test func initRecomputeInvokesCategorizeOncePerFilteredItem() async {
     let c = await loadedCatalog(makeItems(n))
     let counter = LockCounter()
 
@@ -72,11 +74,25 @@ struct GroupedLensLargeNTests {
         return item.score % 10
       }
     )
-    #expect(l.items.count == 500)
+    _ = l  // keep observation alive
     #expect(counter.value == 500, "init's recompute must invoke categorize exactly once per filtered item")
+  }
 
+  @Test func updateSortRecomputeInvokesCategorizeOncePerFilteredItem() async {
+    let c = await loadedCatalog(makeItems(n))
+    let counter = LockCounter()
+
+    let l = GroupedLens<TestItem, Int>(
+      source: c,
+      filter: { $0.score >= 500 },
+      categorize: { item in
+        counter.increment()
+        return item.score % 10
+      }
+    )
+    let afterInit = counter.value
     l.updateSort { $0.score < $1.score }
-    #expect(counter.value == 1_000, "updateSort's recompute must invoke categorize exactly 500 more times, not 1_000")
+    #expect(counter.value - afterInit == 500, "updateSort's recompute must invoke categorize exactly once per filtered item, not 2×")
   }
 
   @Test func groupingDoesNotDegradeSortStability() async {

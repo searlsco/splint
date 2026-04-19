@@ -1,4 +1,3 @@
-import Foundation
 import Observation
 
 /// A derived, read-only 2-D projection over a ``Catalog``. A
