@@ -6,17 +6,6 @@ import Splint
 @MainActor
 @Suite("Bookshelf Job integration")
 struct JobIntegrationTests {
-  private func waitUntil(
-    timeout: Duration = .seconds(2),
-    _ condition: () -> Bool
-  ) async {
-    let deadline = ContinuousClock.now.advanced(by: timeout)
-    while ContinuousClock.now < deadline {
-      if condition() { return }
-      try? await Task.sleep(for: .milliseconds(5))
-    }
-  }
-
   @Test func fetchMetadataLifecycle() async {
     let job = Job<BookMetadata>()
     let client = BookClient.mock
