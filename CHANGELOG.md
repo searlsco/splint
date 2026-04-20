@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-19
+
 ### Added
 
 - `GroupedLens<Item, Category>` — a new sibling projection type
