@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-20
+
 ### Added
 
 - `Catalog.init(initialItems:fetch:)` — seed a catalog with a snapshot
