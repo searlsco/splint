@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `Catalog.init(initialItems:fetch:)` — seed a catalog with a snapshot
+  so `items` is non-empty from moment zero. Lets consumers show a
+  disk-cached copy immediately on cold launch instead of flashing an
+  empty state while the first fetch runs. `Lens` and `GroupedLens`
+  built on top see the seed immediately. `phase` stays `.idle` until
+  a real `load()` completes
+  ([#29](https://github.com/searlsco/splint/issues/29)).
+
+### Changed
+
+- `Catalog.load(_:)` now preserves `items` on the first load (when
+  the prior criteria was `nil`) instead of clearing them. Clearing on
+  criteria change still applies when transitioning between two
+  distinct non-nil criteria. This is what makes `initialItems:` seeds
+  stay visible through the first fetch.
+
 ## [0.2.0] - 2026-04-19
 
 ### Added

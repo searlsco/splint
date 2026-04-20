@@ -187,6 +187,50 @@ struct CatalogTests {
     #expect(c[id: 99] == nil)
   }
 
+  @Test func initialItemsSeedsItemsBeforeAnyLoad() {
+    let seed = [TestItem(id: 1, name: "seed", score: 0)]
+    let c = Catalog<TestItem, TestCriteria>(initialItems: seed) { _ in [] }
+    #expect(c.items == seed)
+    #expect(c.phase == .idle)
+    #expect(c.criteria == nil)
+    #expect(c.lastLoaded == nil)
+  }
+
+  @Test func firstLoadPreservesSeededItemsUntilFetchCompletes() async {
+    let gate = AsyncGate()
+    let seed = [TestItem(id: 1, name: "seed", score: 0)]
+    let fresh = [TestItem(id: 2, name: "fresh", score: 1)]
+    let c = Catalog<TestItem, TestCriteria>(initialItems: seed) { _ in
+      await gate.wait()
+      return fresh
+    }
+    c.load(TestCriteria(category: "x"))
+    await waitUntil { c.phase == .running }
+    // Seed is still visible while fetch is in flight.
+    #expect(c.items == seed)
+    await gate.open()
+    await waitUntil { c.items == fresh }
+  }
+
+  @Test func seededCatalogClearsWhenSwitchingBetweenNonNilCriteria() async {
+    let gate = AsyncGate()
+    let counter = Counter()
+    let seed = [TestItem(id: 0, name: "seed", score: 0)]
+    let c = Catalog<TestItem, TestCriteria>(initialItems: seed) { _ in
+      let n = await counter.increment()
+      if n > 1 { await gate.wait() }
+      return [TestItem(id: n, name: "fetched", score: n)]
+    }
+    c.load(TestCriteria(category: "a"))
+    await waitUntil { c.phase == .completed }
+    #expect(c.items.first?.name == "fetched")
+    c.load(TestCriteria(category: "b"))
+    // Clearing is synchronous when switching between distinct non-nil criteria.
+    #expect(c.items.isEmpty)
+    await gate.open()
+    await waitUntil { c.phase == .completed && !c.items.isEmpty }
+  }
+
   @Test func noCriteriaConvenienceWorksWithoutArgs() async {
     let c = Catalog<TestItem, NoCriteria> {
       [TestItem(id: 1, name: "A", score: 1)]
