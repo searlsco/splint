@@ -30,9 +30,9 @@ public struct ContentView: View {
     // cache keyed by the last successful fetch; for the example a
     // handful of hardcoded entries suffices to demonstrate the seam.
     let cached: [Book] = [
-      Book(id: "seed-1", title: "Cached: The Pragmatic Programmer", author: "Hunt & Thomas", genre: "Programming", year: 1999),
-      Book(id: "seed-2", title: "Cached: Clean Code", author: "Robert C. Martin", genre: "Programming", year: 2008),
-      Book(id: "seed-3", title: "Cached: Refactoring", author: "Martin Fowler", genre: "Programming", year: 1999),
+      Book(id: "seed-1", title: "Cached: The Pragmatic Programmer", author: "Hunt & Thomas", genre: "Nonfiction", year: 1999),
+      Book(id: "seed-2", title: "Cached: Clean Code", author: "Robert C. Martin", genre: "Nonfiction", year: 2008),
+      Book(id: "seed-3", title: "Cached: Refactoring", author: "Martin Fowler", genre: "Nonfiction", year: 1999),
     ]
     let c = Catalog<Book, BookCriteria>(initialItems: cached, fetch: client.fetchBooks)
     self._catalog = State(initialValue: c)
