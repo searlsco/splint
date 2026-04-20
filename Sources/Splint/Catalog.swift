@@ -22,9 +22,12 @@ public struct NoCriteria: Equatable, Sendable {
 @Observable
 @MainActor
 public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
-  /// Items returned by the most recent fetch. Cleared when criteria change
-  /// in ``load(_:)``; preserved when ``refresh()`` is called with the same
-  /// criteria.
+  /// Items returned by the most recent fetch, or the seed passed to
+  /// ``init(initialItems:fetch:)`` before any fetch has completed.
+  /// Cleared when ``load(_:)`` is called with criteria that differ from
+  /// the current non-nil criteria; preserved across a first load (so
+  /// seeded items stay visible until the first fetch completes) and
+  /// across ``refresh()``.
   public private(set) var items: [Item] = []
   /// The criteria used for the most recent (or in-flight) load.
   public private(set) var criteria: Criteria?
@@ -43,15 +46,33 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
   @_spi(Internal)
   public var currentTask: Task<Void, Never>? { task }
 
-  public init(fetch: @escaping @Sendable (Criteria) async throws -> [Item]) {
+  /// - Parameters:
+  ///   - initialItems: A seed populating ``items`` before any fetch. Use
+  ///     this to show a cached/snapshot copy on cold launch so consumers
+  ///     of ``items`` (including ``Lens`` and ``GroupedLens``) have data
+  ///     to render immediately. ``phase`` stays `.idle` until a real
+  ///     ``load(_:)`` completes — seeding is not a completed fetch. The
+  ///     seed remains visible through the first ``load(_:)``; it is
+  ///     only cleared when ``load(_:)`` is called with criteria that
+  ///     differ from an existing non-nil criteria.
+  ///   - fetch: The async fetch closure invoked by ``load(_:)`` and
+  ///     ``refresh()``.
+  public init(
+    initialItems: [Item] = [],
+    fetch: @escaping @Sendable (Criteria) async throws -> [Item]
+  ) {
+    self.items = initialItems
     self.fetch = fetch
   }
 
-  /// Load with `criteria`. If the criteria differ from the current ones,
-  /// clears ``items`` immediately so the view shows a loading state rather
-  /// than wrong data from the previous criteria.
+  /// Load with `criteria`. If `criteria` differs from an existing non-nil
+  /// criteria, clears ``items`` immediately so the view shows a loading
+  /// state rather than wrong data from the previous criteria. The first
+  /// load after init (criteria was `nil`) preserves any existing items —
+  /// including seed values from ``init(initialItems:fetch:)`` — so the
+  /// seed stays visible until the fetch completes.
   public func load(_ criteria: Criteria) {
-    if self.criteria != criteria {
+    if let existing = self.criteria, existing != criteria {
       items = []
     }
     self.criteria = criteria

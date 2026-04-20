@@ -174,6 +174,16 @@ struct GroupedLensTests {
     #expect(l.groups.isEmpty)
   }
 
+  @Test func reflectsSeededItemsImmediately() {
+    let c = Catalog<TestItem, TestCriteria>(initialItems: sample) { _ in [] }
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { $0.name.prefix(1).lowercased() }
+    )
+    #expect(l.items.count == sample.count)
+    #expect(l.groups.map(\.category) == ["a", "b", "c"])
+  }
+
   @Test func clearsWhenSourceClearsOnCriteriaChange() async {
     let counter = Counter()
     let c = Catalog<TestItem, TestCriteria> { _ in
