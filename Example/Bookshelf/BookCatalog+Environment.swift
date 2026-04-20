@@ -8,8 +8,7 @@ import Splint
 
 extension EnvironmentValues {
   @Entry public var bookCatalog: Catalog<Book, BookCriteria>? = nil
-  @Entry public var searchLens: Lens<Book>? = nil
-  @Entry public var genreLens: Lens<Book>? = nil
+  @Entry public var displayLens: GroupedLens<Book, String>? = nil
   @Entry public var bookSelection: Selection<String>? = nil
   @Entry public var showCoversSetting: Setting<Bool>? = nil
   @Entry public var preferredGenreSetting: Setting<String>? = nil
