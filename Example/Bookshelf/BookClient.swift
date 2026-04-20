@@ -24,11 +24,11 @@ extension BookClient {
   /// networking; this example only uses the mock.
   public static let mock = BookClient(
     fetchBooks: { _ in
-      try? await Task.sleep(for: .milliseconds(5000))
+      try? await Task.sleep(for: .milliseconds(50))
       return sampleBooks
     },
     fetchMetadata: { id in
-      try? await Task.sleep(for: .milliseconds(5000))
+      try? await Task.sleep(for: .milliseconds(50))
       return BookMetadata(
         description: "A fine book about \(id).",
         pageCount: 200 + (abs(id.hashValue) % 400)
@@ -48,7 +48,7 @@ extension BookClient {
         account: bookshelfCredentialAccount,
         synchronizable: false
       ).read()
-      try? await Task.sleep(for: .milliseconds(5000))
+      try? await Task.sleep(for: .milliseconds(500))
       return sampleBooks
     },
     fetchMetadata: { id in
@@ -57,7 +57,7 @@ extension BookClient {
         account: bookshelfCredentialAccount,
         synchronizable: false
       ).read()
-      try? await Task.sleep(for: .milliseconds(5000))
+      try? await Task.sleep(for: .milliseconds(500))
       return BookMetadata(
         description: "A fine book about \(id).",
         pageCount: 200 + (abs(id.hashValue) % 400)
