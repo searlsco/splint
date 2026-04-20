@@ -1,6 +1,8 @@
 # Splint
 
 [![Certified Shovelware](https://justin.searls.co/img/shovelware.svg)](https://justin.searls.co/shovelware/)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fsearlsco%2Fsplint%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/searlsco/splint)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fsearlsco%2Fsplint%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/searlsco/splint)
 
 Learn Splint interactively: [Naming the Shapes](https://artifact.land/@scott/naming-the-shapes-1) on artifact.land.
 
