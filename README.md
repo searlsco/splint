@@ -53,6 +53,10 @@ let catalog = Catalog<Book, BookCriteria> { criteria in
     try await api.fetchBooks(in: criteria.libraryID)
 }
 
+// Or seed from a disk cache so the UI renders immediately on cold launch.
+// The seed stays visible through the first load() until the fetch lands.
+//   Catalog<Book, BookCriteria>(initialItems: cachedBooks) { criteria in … }
+
 catalog.load(BookCriteria(libraryID: "main"))
 
 let favorites = Lens<Book>(source: catalog, filter: { $0.isFavorite })
@@ -164,7 +168,10 @@ The most important API distinction in Splint:
 
 - `catalog.load(newCriteria)` — criteria changed; old items are *wrong*
   (channel A's programs when you asked for channel B). Clears items
-  immediately so the view shows loading, not wrong data.
+  immediately so the view shows loading, not wrong data. The one
+  exception is the very first `load()`: the prior criteria was `nil`,
+  so there are no "wrong" items to wipe — any seeded items from
+  `initialItems:` stay visible until the fetch lands.
 - `catalog.refresh()` — same criteria; items stay visible during fetch.
   This is pull-to-refresh, periodic polling, "show stale and update in
   place." No-op if `load()` has never been called.
@@ -216,6 +223,29 @@ init(client: BookClient) {
 No singletons, no late-binding, no service locators. The same rule
 applies to `Lens` filter/sort closures — see "Lens closures capture
 once" below.
+
+### Seeding from a cache
+
+Cold launch shouldn't have to flash an empty view for the 500ms–2s the
+first fetch takes. If you have a disk-cached snapshot of the last
+successful fetch, pass it to `Catalog` via `initialItems:`:
+
+```swift
+let cached: [Book] = cache.load(key: "books", as: [Book].self) ?? []
+let catalog = Catalog<Book, BookCriteria>(initialItems: cached) { criteria in
+    try await api.fetchBooks(in: criteria.libraryID)
+}
+```
+
+Semantics:
+
+- `catalog.items` is non-empty from moment zero — any `Lens` or
+  `GroupedLens` built on top sees the seed immediately.
+- `catalog.phase` stays `.idle` until a real `load()` completes.
+  Seeding is not a completed fetch.
+- The first `load()` preserves the seed until the fetch lands, so the
+  view doesn't flash empty between "we showed the cache" and "the
+  network answered."
 
 ## Narrowly-scoped catalogs over client-side filtering
 
