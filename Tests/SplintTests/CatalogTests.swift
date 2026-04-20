@@ -21,17 +21,6 @@ private struct Boom: Error, LocalizedError {
 @MainActor
 @Suite("Catalog")
 struct CatalogTests {
-  private func waitUntil(
-    timeout: Duration = .seconds(2),
-    _ condition: () -> Bool
-  ) async {
-    let deadline = ContinuousClock.now.advanced(by: timeout)
-    while ContinuousClock.now < deadline {
-      if condition() { return }
-      try? await Task.sleep(for: .milliseconds(5))
-    }
-  }
-
   private func makeCatalog(
     items: [TestItem] = [
       TestItem(id: 1, name: "A", score: 10),
