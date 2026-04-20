@@ -175,7 +175,6 @@ templates until the project has traffic that warrants them.
 
 ## Repository files
 
-- No README badges. The SPI page is the canonical status dashboard.
 - `.gitignore` covers `.build/`, `.swiftpm/`, `DerivedData/`, `*.xcodeproj`,
   `Package.resolved`. The one deliberate exception is
   `Example/Bookshelf.xcodeproj` — the example app is committed so anyone
