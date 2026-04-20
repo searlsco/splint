@@ -55,10 +55,19 @@ var body: some View {
 Same rule as ``Catalog``'s fetch closure: Splint closures capture at
 construction; mutable inputs flow through update methods.
 
+## See also
+
+For sectioned `List` / `ForEach { Section }` rendering, use
+``GroupedLens`` — it adds a cached `groups` projection on top of the
+same filter + sort so you can render groups without recomputing
+`Dictionary(grouping:)` on every view body evaluation.
+
 ## Topics
 
 ### Related
 
 - ``Catalog``
+- ``GroupedLens``
 - ``Resource``
+- <doc:GroupedLensGuide>
 - <doc:ObservationBoundaries>

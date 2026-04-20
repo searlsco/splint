@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `GroupedLens<Item, Category>` — a new sibling projection type
+  alongside `Lens<Item>` for sectioned lists. Exposes both the
+  filter+sort output (`items`) and a cached grouped form
+  (`groups: [(category: Category, items: [Item])]`) derived from an
+  optional `@Sendable (Item) -> Category` categorizer. Groups are
+  ordered by `Category`'s `Comparable`; items within each group
+  preserve the lens's sort. Enables `ForEach { Section }` SwiftUI
+  patterns without per-render `Dictionary(grouping:)`
+  ([#26](https://github.com/searlsco/splint/issues/26)).
+
 ## [0.1.0] - 2026-04-17
 
 ### Added

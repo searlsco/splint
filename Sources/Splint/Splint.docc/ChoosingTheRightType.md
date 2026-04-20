@@ -16,7 +16,8 @@ into `@State`, `@Environment`, `@Query`, and `@Observable`.
 |------|---------------|-------------|-------------|------------|
 | ``Resource`` | Decoded remote data | None — value type | None | Immutable after decode |
 | ``Catalog`` | Ordered collection of Resources loaded by criteria, plus fetch lifecycle | `@Observable` | None (in-memory cache) | Collection mutates on load/refresh |
-| ``Lens`` | Filtered/sorted/grouped view over a ``Catalog`` | `@Observable` | None | Criteria mutate; data is derived |
+| ``Lens`` | Filtered/sorted view over a ``Catalog`` | `@Observable` | None | Predicates mutate; data is derived |
+| ``GroupedLens`` | Filtered/sorted view + cached grouped sections | `@Observable` | None | Predicates mutate; data is derived |
 | ``Job`` | Async operation lifecycle | `@Observable` | None | Phase mutates as work progresses |
 | ``Selection`` | Currently selected item identifier | `@Observable` | None | Mutates on user tap |
 | ``Setting`` | Single typed user preference | `@Observable` | UserDefaults | Mutates, persists automatically |
@@ -27,6 +28,7 @@ into `@State`, `@Environment`, `@Query`, and `@Observable`.
 - Decoded remote data → ``Resource``
 - Collection of Resources → ``Catalog``
 - Filtered/sorted view of a Catalog → ``Lens``
+- Sectioned view of a Catalog → ``GroupedLens``
 - Async fetch lifecycle → ``Job``
 - Selected item identifier → ``Selection``
 - User preference → ``Setting``

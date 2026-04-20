@@ -103,6 +103,51 @@ let benchmarks: @Sendable () -> Void = {
       lens.updateFilter { $0.score > n / 2 }
     }
   }
+
+  // GroupedLens: 32 buckets of ~31k items each — representative of a
+  // real sectioned-list cardinality (not "one group" or "one item per
+  // group"). Measures the grouping pass on top of filter+sort.
+  Benchmark(
+    "GroupedLens_1M_initFilterSortGrouping",
+    configuration: .init(
+      thresholds: [
+        .wallClock: .init(relative: [.p90: 50.0]),
+        .mallocCountTotal: .init(relative: [.p90: 25.0]),
+      ]
+    )
+  ) { benchmark in
+    let catalog = await primeCatalog(n: n)
+    benchmark.startMeasurement()
+    await MainActor.run {
+      blackHole(
+        GroupedLens<BenchItem, Int>(
+          source: catalog,
+          filter: { $0.score % 2 == 0 },
+          sort: { $0.score < $1.score },
+          categorize: { $0.score % 32 }
+        )
+      )
+    }
+  }
+
+  Benchmark(
+    "GroupedLens_1M_updateGrouping",
+    configuration: .init(
+      thresholds: [
+        .wallClock: .init(relative: [.p90: 50.0]),
+        .mallocCountTotal: .init(relative: [.p90: 25.0]),
+      ]
+    )
+  ) { benchmark in
+    let catalog = await primeCatalog(n: n)
+    let lens = await MainActor.run {
+      GroupedLens<BenchItem, Int>(source: catalog)
+    }
+    benchmark.startMeasurement()
+    await MainActor.run {
+      lens.updateCategories { $0.score % 32 }
+    }
+  }
 }
 
 // MARK: - Fixtures
