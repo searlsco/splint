@@ -2,8 +2,4 @@ version: 1
 builder:
   configs:
     - documentation_targets: [Splint]
-      platform: ios
-    - platform: macos-spm
-    - platform: tvos
-    - platform: watchos
-    - platform: visionos
+      custom_documentation_parameters: [--include-extended-types]
