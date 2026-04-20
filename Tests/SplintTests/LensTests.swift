@@ -94,6 +94,12 @@ struct LensTests {
     #expect(l.items.isEmpty)
   }
 
+  @Test func reflectsSeededItemsImmediately() {
+    let c = Catalog<TestItem, TestCriteria>(initialItems: sample) { _ in [] }
+    let l = Lens<TestItem>(source: c, sort: { $0.score < $1.score })
+    #expect(l.items.map(\.score) == [1, 5, 9])
+  }
+
   @Test func clearsWhenSourceClearsOnCriteriaChange() async {
     // First load populates.
     let counter = Counter()
