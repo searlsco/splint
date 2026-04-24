@@ -203,6 +203,75 @@ struct GroupedLensTests {
     #expect(l.groups.map(\.category) == ["a", "b", "c"])
   }
 
+  @Test func aggregateCategorizerSeesFilteredAndSortedItems() async {
+    let c = await loadedCatalog(sample)
+    let seen = MutableBox<[[Int]]>(value: [])
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      filter: { $0.score >= 5 },
+      sort: { $0.score < $1.score },
+      categorize: { _, all in
+        seen.value.append(all.map(\.score))
+        return "x"
+      }
+    )
+    _ = l
+    // One call per filtered item; each call receives the same
+    // filtered+sorted collection the lens has already computed.
+    #expect(seen.value.count == 3)
+    #expect(seen.value.allSatisfy { $0 == [5, 7, 9] })
+  }
+
+  @Test func aggregateCategorizerBucketsRelativeToAllItems() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { item, all in
+        let median = all.map(\.score).sorted()[all.count / 2]
+        return item.score >= median ? "high" : "low"
+      }
+    )
+    // scores: [5, 9, 1, 7] → sorted [1, 5, 7, 9]; count 4, median index 2 → 7.
+    // high (>=7): apple (9), apricot (7). low: banana (5), cherry (1).
+    let high = l.groups.first { $0.category == "high" }?.items.map(\.id).sorted()
+    let low = l.groups.first { $0.category == "low" }?.items.map(\.id).sorted()
+    #expect(high == [2, 4])
+    #expect(low == [1, 3])
+  }
+
+  @Test func updateCategoriesTwoArgOverloadRecomputesGroups() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { $0.name.prefix(1).lowercased() }
+    )
+    #expect(l.groups.map(\.category) == ["a", "b", "c"])
+    l.updateCategories { item, all in
+      let mean = Double(all.map(\.score).reduce(0, +)) / Double(all.count)
+      return Double(item.score) >= mean ? "high" : "low"
+    }
+    // mean = 22/4 = 5.5 → high: 9, 7; low: 5, 1
+    let high = l.groups.first { $0.category == "high" }?.items.map(\.id).sorted()
+    let low = l.groups.first { $0.category == "low" }?.items.map(\.id).sorted()
+    #expect(high == [2, 4])
+    #expect(low == [1, 3])
+  }
+
+  @Test func updateCategoriesNilClearsAfterTwoArgCategorizer() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { item, all in
+        let mean = Double(all.map(\.score).reduce(0, +)) / Double(all.count)
+        return Double(item.score) >= mean ? "high" : "low"
+      }
+    )
+    #expect(!l.groups.isEmpty)
+    l.updateCategories(nil)
+    #expect(l.groups.isEmpty)
+    #expect(!l.items.isEmpty)
+  }
+
   @Test func clearsWhenSourceClearsOnCriteriaChange() async {
     let counter = Counter()
     let c = Catalog<TestItem, TestCriteria> { _ in
