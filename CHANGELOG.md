@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.4.0] - 2026-04-24
-
 ### Added
 
 - `GroupedLens` categorizer overload that receives the full
