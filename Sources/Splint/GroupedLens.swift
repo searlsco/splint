@@ -39,7 +39,7 @@ public final class GroupedLens<
   @ObservationIgnored private let sourceItems: @MainActor () -> [Item]
   @ObservationIgnored private var filter: @Sendable (Item) -> Bool
   @ObservationIgnored private var order: (@Sendable (Item, Item) -> Bool)?
-  @ObservationIgnored private var categorize: (@Sendable (Item) -> Category)?
+  @ObservationIgnored private var categorize: (@Sendable (Item, [Item]) -> Category)?
 
   public init<Criteria: Equatable & Sendable>(
     source: Catalog<Item, Criteria>,
@@ -66,6 +66,27 @@ public final class GroupedLens<
     self.sourceItems = { source.items }
     self.filter = filter
     self.order = sort
+    self.categorize = categorize.map { simple -> @Sendable (Item, [Item]) -> Category in
+      { item, _ in simple(item) }
+    }
+    refresh()
+    observe()
+  }
+
+  /// Aggregate-aware variant. The categorizer receives the current item
+  /// *and* the full filtered+sorted collection, enabling bucketing that
+  /// depends on aggregates (percentiles, above/below median, rank).
+  /// `all` is the same array exposed as ``items``; it has already had
+  /// `filter` and `sort` applied.
+  public init<Criteria: Equatable & Sendable>(
+    source: Catalog<Item, Criteria>,
+    filter: @escaping @Sendable (Item) -> Bool = { _ in true },
+    sort: (@Sendable (Item, Item) -> Bool)? = nil,
+    categorize: @escaping @Sendable (Item, [Item]) -> Category
+  ) {
+    self.sourceItems = { source.items }
+    self.filter = filter
+    self.order = sort
     self.categorize = categorize
     refresh()
     observe()
@@ -87,6 +108,15 @@ public final class GroupedLens<
   /// Replace the categorizer and recompute. Pass `nil` to clear
   /// ``groups`` back to empty without losing ``items``.
   public func updateCategories(_ categorize: (@Sendable (Item) -> Category)?) {
+    self.categorize = categorize.map { simple -> @Sendable (Item, [Item]) -> Category in
+      { item, _ in simple(item) }
+    }
+    refresh()
+  }
+
+  /// Aggregate-aware variant of ``updateCategories(_:)``. The closure
+  /// receives the current item and the full filtered+sorted collection.
+  public func updateCategories(_ categorize: @escaping @Sendable (Item, [Item]) -> Category) {
     self.categorize = categorize
     refresh()
   }
@@ -114,7 +144,7 @@ public final class GroupedLens<
     }
     var buckets: [Category: [Item]] = [:]
     for item in result {
-      buckets[categorize(item), default: []].append(item)
+      buckets[categorize(item, result), default: []].append(item)
     }
     groups = buckets.keys.sorted().map { key in
       (category: key, items: buckets[key]!)
