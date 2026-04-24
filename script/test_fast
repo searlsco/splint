@@ -5,5 +5,20 @@
 set -e
 trap 'rc=$?; command -v prove_it >/dev/null 2>&1 && prove_it record --name fast-tests --result $rc' EXIT
 cd "$(dirname "$0")/.."
+# Preflight: see script/test — bail fast instead of hanging on a held
+# SwiftPM workspace lock.
+if [[ -e .build ]] && command -v lsof >/dev/null 2>&1; then
+  holders="$(lsof -t -- .build/.lock .build/*.lock 2>/dev/null | sort -u || true)"
+  if [[ -n "$holders" ]]; then
+    echo "error: SwiftPM lock in .build/ is held by another process:" >&2
+    while IFS= read -r pid; do
+      [[ -n "$pid" ]] || continue
+      ps -o pid=,command= -p "$pid" 2>/dev/null | sed 's/^ */  /' >&2
+      echo "  kill: kill $pid" >&2
+    done <<<"$holders"
+    exit 2
+  fi
+fi
+
 # Fast subset: skip keychain-touching tests that invoke SecItem* syscalls.
 swift test --skip CredentialTests
