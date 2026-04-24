@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `GroupedLens` categorizer overload that receives the raw source
+  collection alongside the filtered+sorted visible one:
+  `(Item, _ visible: [Item], _ source: [Item]) -> Category`. Enables
+  bucketing anchored to the source (e.g. "above the library-wide mean"
+  while the lens is filtered to a subset) without reaching outside the
+  lens. Available on both `init` and `updateCategories(_:)`; the
+  existing one- and two-argument forms are unchanged.
+
 ## [0.4.0] - 2026-04-24
 
 ### Added
