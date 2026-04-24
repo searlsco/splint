@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `Lens.refresh()` and `GroupedLens.refresh()` — public entry points
+  that re-run the current filter, sort, and (for `GroupedLens`)
+  categorizer over the source catalog's items without changing the
+  closures themselves. Intended for predicates that read from state
+  the lens cannot practically observe: clocks (`Date.now`,
+  time-windowed filters), locale changes, reachability / online
+  status, feature flags, newly-granted permissions, cleared caches,
+  and RNG-based shuffles. Previously this required calling
+  `updateFilter` (or `updateSort` / `updateCategories`) with an
+  identical closure
+  ([#31](https://github.com/searlsco/splint/pull/31)).
+
+### Changed
+
+- `Lens` and `GroupedLens` init-parameter documentation: the "do not
+  capture mutable view state" warning now scopes to *observable* view
+  state and points at `refresh()` as the escape hatch for exogenous
+  state. The underlying advice (observable inputs flow through
+  `.onChange(of:)` + `updateFilter`) is unchanged; the guidance just
+  no longer discourages legitimate exogenous-state patterns.
+
 ## [0.3.0] - 2026-04-20
 
 ### Added
