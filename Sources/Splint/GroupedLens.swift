@@ -15,7 +15,7 @@ import Observation
 /// see `GroupedLens<Item, Category>`, not `GroupedLens<Item, Category,
 /// Criteria>`.
 ///
-/// **Performance.** `recompute()` is O(n) for the filter pass, O(n log
+/// **Performance.** `refresh()` is O(n) for the filter pass, O(n log
 /// n) for the sort (stdlib introsort) when one is set, and O(n + k log
 /// k) for the grouping pass (k = distinct categories) when a
 /// categorizer is set. Under ~1k items this is negligible; for larger
@@ -44,8 +44,14 @@ public final class GroupedLens<
   public init<Criteria: Equatable & Sendable>(
     source: Catalog<Item, Criteria>,
     /// Predicate applied to each item. Captured once at init; re-runs
-    /// only when `updateFilter` is called. Do not capture mutable view
-    /// state — drive `updateFilter` from `.onChange(of:)` instead.
+    /// only when ``updateFilter(_:)`` or ``refresh()`` is called. Do not
+    /// capture mutable *observable* view state — drive
+    /// ``updateFilter(_:)`` from `.onChange(of:)` instead. For exogenous
+    /// state the lens cannot practically observe (clocks, locale,
+    /// reachability, feature flags, newly-granted permissions, cleared
+    /// caches, RNG) it's fine for the closure to read that state
+    /// directly; call ``refresh()`` to re-run the projection when it
+    /// changes.
     filter: @escaping @Sendable (Item) -> Bool = { _ in true },
     /// Comparator applied after filtering. Same capture rules as
     /// `filter`.
@@ -61,31 +67,43 @@ public final class GroupedLens<
     self.filter = filter
     self.order = sort
     self.categorize = categorize
-    recompute()
+    refresh()
     observe()
   }
 
   /// Replace the filter predicate and recompute.
   public func updateFilter(_ filter: @escaping @Sendable (Item) -> Bool) {
     self.filter = filter
-    recompute()
+    refresh()
   }
 
   /// Replace the sort predicate and recompute. Pass `nil` to remove
   /// sorting and return to source order.
   public func updateSort(_ sort: (@Sendable (Item, Item) -> Bool)?) {
     self.order = sort
-    recompute()
+    refresh()
   }
 
   /// Replace the categorizer and recompute. Pass `nil` to clear
   /// ``groups`` back to empty without losing ``items``.
   public func updateCategories(_ categorize: (@Sendable (Item) -> Category)?) {
     self.categorize = categorize
-    recompute()
+    refresh()
   }
 
-  private func recompute() {
+  /// Re-run the current filter, sort, and categorizer over the source
+  /// catalog's items without changing the closures themselves. The
+  /// lens automatically refreshes when the source changes or when you
+  /// call ``updateFilter(_:)`` / ``updateSort(_:)`` /
+  /// ``updateCategories(_:)`` — reach for `refresh()` only when any of
+  /// those closures reads from state the lens cannot (or deliberately
+  /// does not) observe: clocks (`Date.now`, "due within the next
+  /// hour"), locale changes, reachability / online status, file-system
+  /// mtimes, feature flags, newly-granted permissions, cleared caches,
+  /// or RNG-based shuffles. Both ``items`` and ``groups`` are
+  /// recomputed. For state you *can* observe, `.onChange(of:)` plus
+  /// the matching `update…` method remains the right pattern.
+  public func refresh() {
     var result = sourceItems().filter(self.filter)
     if let order { result.sort(by: order) }
     items = result
@@ -105,13 +123,13 @@ public final class GroupedLens<
 
   private func observe() {
     // Re-arm tracking on every change. onChange fires *before* the mutation
-    // is committed, so defer the recompute to the next MainActor hop.
+    // is committed, so defer the refresh to the next MainActor hop.
     withObservationTracking { [weak self] in
       _ = self?.sourceItems()
     } onChange: { [weak self] in
       Task { @MainActor [weak self] in
         guard let self else { return }
-        self.recompute()
+        self.refresh()
         self.observe()
       }
     }

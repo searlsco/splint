@@ -164,6 +164,25 @@ struct GroupedLensTests {
     #expect(l.groups.map(\.category) == [20])
   }
 
+  @Test func refreshReRunsCategorizerWithCurrentClosureState() async {
+    let c = await loadedCatalog(sample)
+    // Exogenous toggle that the categorizer reads without the lens
+    // observing it — mirrors the time/locale/flag scenarios.
+    let byFirstLetter = MutableBox(value: true)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      sort: { $0.score < $1.score },
+      categorize: { item in
+        byFirstLetter.value ? String(item.name.prefix(1)) : "all"
+      }
+    )
+    #expect(Set(l.groups.map(\.category)) == Set(["b", "a", "c"]))
+    byFirstLetter.value = false
+    l.refresh()
+    #expect(l.groups.map(\.category) == ["all"])
+    #expect(l.groups.first?.items.map(\.score) == [1, 5, 7, 9])
+  }
+
   @Test func emptySourceReturnsEmpty() async {
     let c = await loadedCatalog([])
     let l = GroupedLens<TestItem, String>(

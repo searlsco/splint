@@ -243,6 +243,14 @@ struct CatalogTests {
 
 // MARK: - Test helpers
 
+/// A reference cell used by tests to stand in for exogenous state that a
+/// Splint closure reads without the container observing it — e.g. the
+/// motivation for `Lens.refresh()` / `GroupedLens.refresh()`.
+final class MutableBox<T>: @unchecked Sendable {
+  var value: T
+  init(value: T) { self.value = value }
+}
+
 actor Counter {
   private var _value: Int = 0
   var value: Int { _value }

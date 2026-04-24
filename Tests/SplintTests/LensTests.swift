@@ -100,6 +100,30 @@ struct LensTests {
     #expect(l.items.map(\.score) == [1, 5, 9])
   }
 
+  @Test func refreshReRunsFilterWithCurrentClosureState() async {
+    let c = await loadedCatalog(sample)
+    // Exogenous state the filter reads without the lens observing it.
+    let threshold = MutableBox(value: 10)
+    let l = Lens<TestItem>(source: c, filter: { $0.score >= threshold.value })
+    #expect(l.items.isEmpty)
+    threshold.value = 5
+    l.refresh()
+    #expect(Set(l.items.map(\.id)) == Set([1, 2]))
+  }
+
+  @Test func refreshReRunsSortWithCurrentClosureState() async {
+    let c = await loadedCatalog(sample)
+    let ascending = MutableBox(value: true)
+    let l = Lens<TestItem>(
+      source: c,
+      sort: { a, b in ascending.value ? a.score < b.score : a.score > b.score }
+    )
+    #expect(l.items.map(\.score) == [1, 5, 9])
+    ascending.value = false
+    l.refresh()
+    #expect(l.items.map(\.score) == [9, 5, 1])
+  }
+
   @Test func clearsWhenSourceClearsOnCriteriaChange() async {
     // First load populates.
     let counter = Counter()
