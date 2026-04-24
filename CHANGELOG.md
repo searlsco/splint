@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `GroupedLens` categorizer overload that receives the full
+  filtered+sorted collection alongside each item:
+  `(Item, [Item]) -> Category`. Enables aggregate-aware bucketing
+  (percentiles, above/below median, rank-based groups) without
+  precomputing aggregates outside the lens. Available on both `init`
+  and `updateCategories(_:)`; the existing `(Item) -> Category` form
+  is unchanged and remains the default.
 - `Lens.refresh()` and `GroupedLens.refresh()` — public entry points
   that re-run the current filter, sort, and (for `GroupedLens`)
   categorizer over the source catalog's items without changing the

@@ -116,6 +116,28 @@ lens.refresh()
 For state you *can* observe, `.onChange(of:)` plus the matching
 `update…` method remains the right pattern — see the next section.
 
+## Aggregate-aware categorizers
+
+When a category depends on the collection as a whole — percentile
+buckets, above/below median, rank-based groups — pass a two-argument
+categorizer. It receives the current item *and* the full filtered +
+sorted collection (the same array exposed as `items`):
+
+```swift
+let lens = GroupedLens<Book, String>(
+  source: catalog,
+  categorize: { book, all in
+    let median = all.map(\.rating).sorted()[all.count / 2]
+    return book.rating >= median ? "Top half" : "Bottom half"
+  })
+```
+
+The same two-argument form is available on
+``GroupedLens/updateCategories(_:)-9y3ib``. The closure fires once per
+item in `items`, not once per item in the source — filter runs first.
+Passing a one-argument closure (or `nil`) still works via the simpler
+overloads; Swift picks the right one based on the closure's arity.
+
 ## Closures capture once
 
 ``GroupedLens`` captures `filter`, `sort`, and `categorize` at init.
