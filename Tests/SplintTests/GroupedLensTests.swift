@@ -272,6 +272,92 @@ struct GroupedLensTests {
     #expect(!l.items.isEmpty)
   }
 
+  @Test func sourceAwareCategorizerSeesRawSourceAndFilteredVisible() async {
+    let c = await loadedCatalog(sample)
+    let seenVisible = MutableBox<[[Int]]>(value: [])
+    let seenSource = MutableBox<[[Int]]>(value: [])
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      filter: { $0.score >= 5 },
+      sort: { $0.score < $1.score },
+      categorize: { _, visible, source in
+        seenVisible.value.append(visible.map(\.score))
+        seenSource.value.append(source.map(\.score))
+        return "x"
+      }
+    )
+    _ = l
+    // One call per filtered item; visible == items (filtered+sorted),
+    // source == raw catalog items (neither filtered nor sorted).
+    #expect(seenVisible.value.count == 3)
+    #expect(seenVisible.value.allSatisfy { $0 == [5, 7, 9] })
+    #expect(seenSource.value.count == 3)
+    #expect(seenSource.value.allSatisfy { $0 == [5, 9, 1, 7] })
+  }
+
+  @Test func sourceAwareBucketingStableAcrossFilter() async {
+    let c = await loadedCatalog(sample)
+    // Source mean = (5+9+1+7)/4 = 5.5 → high: 9, 7 ; low: 5, 1.
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { item, _, source in
+        let mean = Double(source.map(\.score).reduce(0, +)) / Double(source.count)
+        return Double(item.score) >= mean ? "high" : "low"
+      }
+    )
+    // Baseline: full source visible.
+    #expect(
+      l.groups.first { $0.category == "high" }?.items.map(\.id).sorted() == [2, 4]
+    )
+    #expect(
+      l.groups.first { $0.category == "low" }?.items.map(\.id).sorted() == [1, 3]
+    )
+    // Filter to just the three highest-scoring items. Buckets must
+    // stay anchored to the *source* mean, so item 1 (score 5) remains
+    // "low" even though it's now the lowest *visible* score.
+    l.updateFilter { $0.score >= 5 }
+    #expect(
+      l.groups.first { $0.category == "high" }?.items.map(\.id).sorted() == [2, 4]
+    )
+    #expect(
+      l.groups.first { $0.category == "low" }?.items.map(\.id) == [1]
+    )
+  }
+
+  @Test func updateCategoriesThreeArgOverloadRecomputesGroups() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { $0.name.prefix(1).lowercased() }
+    )
+    #expect(l.groups.map(\.category) == ["a", "b", "c"])
+    l.updateCategories { item, _, source in
+      let mean = Double(source.map(\.score).reduce(0, +)) / Double(source.count)
+      return Double(item.score) >= mean ? "high" : "low"
+    }
+    #expect(
+      l.groups.first { $0.category == "high" }?.items.map(\.id).sorted() == [2, 4]
+    )
+    #expect(
+      l.groups.first { $0.category == "low" }?.items.map(\.id).sorted() == [1, 3]
+    )
+  }
+
+  @Test func updateCategoriesNilClearsAfterThreeArgCategorizer() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { item, _, source in
+        let mean = Double(source.map(\.score).reduce(0, +)) / Double(source.count)
+        return Double(item.score) >= mean ? "high" : "low"
+      }
+    )
+    #expect(!l.groups.isEmpty)
+    l.updateCategories(nil)
+    #expect(l.groups.isEmpty)
+    #expect(!l.items.isEmpty)
+  }
+
   @Test func clearsWhenSourceClearsOnCriteriaChange() async {
     let counter = Counter()
     let c = Catalog<TestItem, TestCriteria> { _ in
