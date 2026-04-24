@@ -84,21 +84,46 @@ both the flat list and every section.
 
 ## Performance
 
-`recompute()` is O(n) for filter, O(n log n) for sort, and O(n + k
-log k) for grouping (k = distinct categories). One pass per source
-change or predicate update. Under ~1k items all three are negligible.
-For larger datasets, consider whether filtering belongs in the fetch
-closure (server-side via the catalog's `Criteria`) rather than in a
-client-side lens.
+``GroupedLens/refresh()`` is O(n) for filter, O(n log n) for sort, and
+O(n + k log k) for grouping (k = distinct categories). One pass per
+source change or predicate update. Under ~1k items all three are
+negligible. For larger datasets, consider whether filtering belongs in
+the fetch closure (server-side via the catalog's `Criteria`) rather
+than in a client-side lens.
+
+## Refreshing against exogenous state
+
+``GroupedLens`` automatically refreshes when its source changes or
+when you call ``GroupedLens/updateFilter(_:)``,
+``GroupedLens/updateSort(_:)``, or
+``GroupedLens/updateCategories(_:)``. For closures that read from
+state the lens cannot (or deliberately does not) observe — clocks,
+locale changes, reachability, feature flags, newly-granted
+permissions, cleared caches, RNG-based shuffles — call
+``GroupedLens/refresh()`` to re-run the projection without changing
+the closures themselves:
+
+```swift
+// Category depends on wall-clock time. The lens can't observe `Date.now`.
+let lens = GroupedLens<Task, String>(
+  source: catalog,
+  categorize: { task in task.dueDate < .now ? "Overdue" : "Upcoming" })
+
+// Somewhere driving a minute-tick timer:
+lens.refresh()
+```
+
+For state you *can* observe, `.onChange(of:)` plus the matching
+`update…` method remains the right pattern — see the next section.
 
 ## Closures capture once
 
 ``GroupedLens`` captures `filter`, `sort`, and `categorize` at init.
 They re-run only on ``GroupedLens/updateFilter(_:)``,
-``GroupedLens/updateSort(_:)``, and
-``GroupedLens/updateCategories(_:)`` — not when variables they
-reference change. Capturing mutable view state at init compiles and
-looks correct, and fails silently:
+``GroupedLens/updateSort(_:)``, ``GroupedLens/updateCategories(_:)``,
+or ``GroupedLens/refresh()`` — not when observable variables they
+reference change. Capturing mutable *observable* view state at init
+compiles and looks correct, and fails silently:
 
 ```swift
 // ❌ `grouping` capture goes stale
