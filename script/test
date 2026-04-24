@@ -12,6 +12,23 @@ THRESHOLD="${SPLINT_COVERAGE_THRESHOLD:-100}"
 # Fails fast if the gate tooling is broken without wasting a Swift build.
 python3 script/lib/coverage.py --self-test
 
+# Preflight: if another process is holding the SwiftPM workspace lock in
+# .build/, `swift test` will block indefinitely waiting for it. Identify
+# the holder(s), print copy-pasteable kill commands, and exit — better
+# than hanging until the user ^Cs.
+if [[ -e .build ]] && command -v lsof >/dev/null 2>&1; then
+  holders="$(lsof -t -- .build/.lock .build/*.lock 2>/dev/null | sort -u || true)"
+  if [[ -n "$holders" ]]; then
+    echo "error: SwiftPM lock in .build/ is held by another process:" >&2
+    while IFS= read -r pid; do
+      [[ -n "$pid" ]] || continue
+      ps -o pid=,command= -p "$pid" 2>/dev/null | sed 's/^ */  /' >&2
+      echo "  kill: kill $pid" >&2
+    done <<<"$holders"
+    exit 2
+  fi
+fi
+
 # Run instrumented tests. Not parallel: parallel + coverage historically
 # produces per-worker profraws that need merging.
 swift test --enable-code-coverage
