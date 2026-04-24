@@ -122,10 +122,10 @@ struct LensLargeNTests {
     }
   }
 
-  // Composition invariant: `recompute()` must invoke the filter exactly
+  // Composition invariant: `refresh()` must invoke the filter exactly
   // once per source item per call. Guards a refactor that accidentally
   // double-filters (e.g. filtering then re-filtering after sort).
-  @Test func recomputeInvokesFilterExactlyOncePerItem() async {
+  @Test func refreshInvokesFilterExactlyOncePerItem() async {
     let c = await loadedCatalog(makeItems(n))
     let counter = LockCounter()
 
@@ -136,10 +136,10 @@ struct LensLargeNTests {
         return true
       })
     #expect(l.items.count == n)
-    #expect(counter.value == n, "init's recompute must invoke filter exactly N times")
+    #expect(counter.value == n, "init's refresh must invoke filter exactly N times")
 
-    // updateSort triggers one additional recompute → one additional pass.
+    // updateSort triggers one additional refresh → one additional pass.
     l.updateSort { $0.score < $1.score }
-    #expect(counter.value == 2 * n, "updateSort's recompute must invoke filter exactly N more times, not 2N")
+    #expect(counter.value == 2 * n, "updateSort's refresh must invoke filter exactly N more times, not 2N")
   }
 }

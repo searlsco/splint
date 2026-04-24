@@ -28,12 +28,37 @@ negligible. For larger datasets, consider whether filtering belongs in
 the fetch closure (server-side filtering via the catalog's `Criteria`)
 rather than in a client-side lens.
 
+## Refreshing against exogenous state
+
+``Lens`` automatically refreshes when its source changes or when you
+call ``Lens/updateFilter(_:)`` / ``Lens/updateSort(_:)``. For closures
+that read from state the lens cannot (or deliberately does not)
+observe — clocks, locale changes, reachability, feature flags,
+newly-granted permissions, cleared caches, RNG-based shuffles — call
+``Lens/refresh()`` to re-run the projection without changing the
+closures themselves:
+
+```swift
+// Filter depends on wall-clock time. The lens can't observe `Date.now`.
+let lens = Lens<Task>(
+  source: catalog,
+  filter: { $0.dueDate < .now.addingTimeInterval(3600) })
+
+// Somewhere driving a minute-tick timer:
+lens.refresh()
+```
+
+For state you *can* observe, `.onChange(of:)` plus
+``Lens/updateFilter(_:)`` remains the right pattern — see the next
+section.
+
 ## Closures capture once
 
 ``Lens`` captures `filter` and `sort` at init. They re-run only on
-`updateFilter` / `updateSort` — not when variables they reference
-change. Capturing mutable view state at init compiles and looks
-correct, and fails silently:
+``Lens/updateFilter(_:)`` / ``Lens/updateSort(_:)`` (or
+``Lens/refresh()``) — not when observable variables they reference
+change. Capturing mutable *observable* view state at init compiles and
+looks correct, and fails silently:
 
 ```swift
 // ❌ minRating capture goes stale — Lens never sees changes
