@@ -82,6 +82,22 @@ struct GroupedLensLargeNTests {
     #expect(counter.value - afterInit == 500, "updateSort's refresh must invoke categorize exactly once per filtered item, not 2×")
   }
 
+  @Test func twoArgCategorizerInvokedOncePerFilteredItem() async {
+    let c = await loadedCatalog(makeItems(n))
+    let counter = LockCounter()
+
+    let l = GroupedLens<TestItem, Int>(
+      source: c,
+      filter: { $0.score >= 500 },
+      categorize: { item, _ in
+        counter.increment()
+        return item.score % 10
+      }
+    )
+    _ = l
+    #expect(counter.value == 500, "two-arg categorize must fire exactly once per filtered item")
+  }
+
   @Test func groupingDoesNotDegradeSortStability() async {
     // Within a group, items should appear in the lens's sort order.
     // Here: ascending by id (the default when no sort, since Catalog
