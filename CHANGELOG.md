@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- New DocC article **Sharing state across views** under the *Core
+  concepts* topic group. Names the three primitives that should
+  appear when state must cross a feature boundary — capabilities
+  (closures), coordination (`Selection`), and events
+  (`AsyncStream` / one-shot callbacks) — and the escalation ladder
+  that defaults to `@State`, prefers a Splint primitive over a custom
+  `@Observable`, and treats a custom `@Observable` as a last resort.
+- Matching `## Sharing state across views` section in
+  `claude/rules/splint.md` with stronger, more directive language
+  than the DocC voice, so agent-driven Splint adoption inherits the
+  same boundaries — explicit "never park an `@Observable` in
+  `@Environment`," all-conditions-must-hold checklist for the
+  last-resort `@Observable` case, and worked `❌`/`✅` examples for
+  the three most common drift modes
+  ([#36](https://github.com/searlsco/splint/issues/36)).
+
 ## [0.6.0] - 2026-04-27
 
 ### Added
