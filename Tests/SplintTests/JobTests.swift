@@ -197,4 +197,32 @@ struct JobTests {
     await job.awaitSettled()
     #expect(job.phase == .failed("nope"))
   }
+
+  /// If a run is superseded while `awaitSettled()` is suspended, the
+  /// method must continue waiting until the job reaches a settled
+  /// phase — not return when the cancelled task resolves while a new
+  /// task is still running.
+  @Test func awaitSettledWaitsThroughSupersede() async {
+    let gate2 = AsyncGate()
+    let job = Job<String>()
+    job.run {
+      while !Task.isCancelled { try? await Task.sleep(for: .milliseconds(5)) }
+      throw CancellationError()
+    }
+    await waitUntil { job.phase == .running }
+    let settled = Task { @MainActor in
+      await job.awaitSettled()
+      return job.phase
+    }
+    try? await Task.sleep(for: .milliseconds(50))
+    job.run {
+      await gate2.wait()
+      return "second"
+    }
+    try? await Task.sleep(for: .milliseconds(50))
+    Task { await gate2.open() }
+    let observedPhase = await settled.value
+    #expect(observedPhase == .completed)
+    #expect(job.value == "second")
+  }
 }
