@@ -31,6 +31,7 @@ observation. Pass model instances directly to child views.
 
 - <doc:ChoosingTheRightType>
 - <doc:ObservationBoundaries>
+- <doc:SharingStateAcrossViews>
 
 ### Modeling remote data
 
