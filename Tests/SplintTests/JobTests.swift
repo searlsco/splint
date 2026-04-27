@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import Splint
+@_spi(Internal) @testable import Splint
 
 private struct Boom: Error {
   let msg: String
@@ -202,24 +202,37 @@ struct JobTests {
   /// method must continue waiting until the job reaches a settled
   /// phase — not return when the cancelled task resolves while a new
   /// task is still running.
+  ///
+  /// Synchronization is deterministic: the first run uses
+  /// `Task.yield()` so cancellation propagates without wall-clock
+  /// delay, and the test waits on the captured `task1Ref` to know
+  /// task1 has fully exited before opening the gate that frees task2.
   @Test func awaitSettledWaitsThroughSupersede() async {
     let gate2 = AsyncGate()
     let job = Job<String>()
     job.run {
-      while !Task.isCancelled { try? await Task.sleep(for: .milliseconds(5)) }
+      while !Task.isCancelled { await Task.yield() }
       throw CancellationError()
     }
     await waitUntil { job.phase == .running }
+    let task1Ref = job.currentTask
     let settled = Task { @MainActor in
       await job.awaitSettled()
       return job.phase
     }
-    try? await Task.sleep(for: .milliseconds(50))
+    // Yield so `settled.body` reaches its `await runningTask?.value`
+    // suspension on task1 before we supersede it.
+    await Task.yield()
     job.run {
       await gate2.wait()
       return "second"
     }
-    try? await Task.sleep(for: .milliseconds(50))
+    // Deterministic wait for task1 to exit (cancellation → catch →
+    // return). After this, a single-task `awaitSettled` would observe
+    // phase=.running (task2 is gated). The loop impl will continue
+    // to await task2.
+    await task1Ref?.value
+    await Task.yield()
     Task { await gate2.open() }
     let observedPhase = await settled.value
     #expect(observedPhase == .completed)
