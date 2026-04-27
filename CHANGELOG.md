@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `Catalog.awaitSettled()` and `Job.awaitSettled()` — public async
+  primitives that suspend until the most recent load/run reaches a
+  terminal `Phase` (`.completed` or `.failed`). Replaces the
+  `@_spi(Internal) currentTask?.value` pattern for production
+  sequencing of "load then proceed" flows: `.refreshable` closures,
+  multi-catalog dependency chains, and cached-then-fresh launch
+  logic. Non-throwing; does not propagate cancellation
+  ([#34](https://github.com/searlsco/splint/issues/34)).
+
 ## [0.5.0] - 2026-04-24
 
 ### Added
