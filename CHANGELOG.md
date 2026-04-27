@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-04-27
+
 ### Added
 
 - New DocC article **Sharing state across views** under the *Core
