@@ -79,4 +79,31 @@ public final class Job<Value: Sendable> {
   public var isRunning: Bool {
     if case .running = phase { true } else { false }
   }
+
+  /// Suspend until the most recent ``run(priority:task:)`` (if any)
+  /// reaches a terminal ``Phase`` — `.completed` or `.failed`. Returns
+  /// immediately if no run has been kicked off, or if the most recent
+  /// run already finished. ``cancel()`` and ``reset()`` clear the
+  /// underlying task, so calls following them also return
+  /// immediately.
+  ///
+  /// Use this to sequence "run then proceed" flows in production
+  /// code: `.refreshable` closures, multi-step async pipelines, or
+  /// view-driven async work where the next step needs the prior
+  /// ``value``.
+  ///
+  /// ```swift
+  /// job.run { await fetchUser() }
+  /// await job.awaitSettled()
+  /// // job.value (or job.phase == .failed) now reflects the run
+  /// ```
+  ///
+  /// Does not propagate cancellation. If the calling `Task` is
+  /// cancelled mid-await, this method still waits for the in-flight
+  /// task to finish — the task is owned by the job and continues
+  /// regardless. Callers needing to bail early on cancellation should
+  /// follow with `try Task.checkCancellation()`.
+  public func awaitSettled() async {
+    await runningTask?.value
+  }
 }
