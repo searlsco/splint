@@ -239,6 +239,68 @@ struct CatalogTests {
     await waitUntil { c.phase == .completed }
     #expect(c.items.count == 1)
   }
+
+  @Test func awaitSettledWaitsForInFlightLoad() async {
+    let gate = AsyncGate()
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      await gate.wait()
+      return [TestItem(id: 1, name: "A", score: 1)]
+    }
+    c.load(TestCriteria(category: "x"))
+    await waitUntil { c.phase == .running }
+    Task { await gate.open() }
+    await c.awaitSettled()
+    #expect(c.phase == .completed)
+    #expect(c.items.count == 1)
+  }
+
+  @Test func awaitSettledReturnsImmediatelyWhenIdle() async {
+    let c = makeCatalog()
+    await c.awaitSettled()
+    #expect(c.phase == .idle)
+  }
+
+  @Test func awaitSettledReturnsAfterFailure() async {
+    let c = Catalog<TestItem, TestCriteria> { _ in throw Boom(msg: "nope") }
+    c.load(TestCriteria(category: "x"))
+    await c.awaitSettled()
+    #expect(c.phase == .failed("nope"))
+  }
+
+  /// If a load is superseded while `awaitSettled()` is suspended, the
+  /// method must continue waiting until the catalog reaches a settled
+  /// phase — not return when the cancelled task resolves while a new
+  /// task is still running.
+  @Test func awaitSettledWaitsThroughSupersede() async {
+    let gate2 = AsyncGate()
+    let counter = Counter()
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      let n = await counter.increment()
+      if n == 1 {
+        while !Task.isCancelled { try? await Task.sleep(for: .milliseconds(5)) }
+        throw CancellationError()
+      }
+      await gate2.wait()
+      return [TestItem(id: 2, name: "second", score: 2)]
+    }
+    c.load(TestCriteria(category: "first"))
+    await waitUntil { c.phase == .running }
+    let settled = Task { @MainActor in
+      await c.awaitSettled()
+      return c.phase
+    }
+    // Give `awaitSettled` time to capture task1 before we supersede it.
+    try? await Task.sleep(for: .milliseconds(50))
+    c.load(TestCriteria(category: "second"))
+    // Hold the second task gated so that, if `awaitSettled` returns
+    // prematurely (when task1's cancellation propagates), we observe
+    // `.running` rather than `.completed`. Then release.
+    try? await Task.sleep(for: .milliseconds(50))
+    Task { await gate2.open() }
+    let observedPhase = await settled.value
+    #expect(observedPhase == .completed)
+    #expect(c.items.first?.name == "second")
+  }
 }
 
 // MARK: - Test helpers

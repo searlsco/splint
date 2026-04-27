@@ -79,4 +79,39 @@ public final class Job<Value: Sendable> {
   public var isRunning: Bool {
     if case .running = phase { true } else { false }
   }
+
+  /// Suspend until the job reaches a settled ``Phase`` — `.completed`
+  /// or `.failed`. Returns immediately if no run has been kicked off,
+  /// or if the job is already settled. ``cancel()`` and ``reset()``
+  /// move the job back to `.idle`, so calls following them also
+  /// return immediately.
+  ///
+  /// Use this to sequence "run then proceed" flows in production
+  /// code: `.refreshable` closures, multi-step async pipelines, or
+  /// view-driven async work where the next step needs the prior
+  /// ``value``.
+  ///
+  /// ```swift
+  /// job.run { await fetchUser() }
+  /// await job.awaitSettled()
+  /// // job.value (or job.phase == .failed) now reflects the run
+  /// ```
+  ///
+  /// **Tracks supersedes.** If a run is cancelled and replaced by a
+  /// later ``run(priority:task:)`` while this method is suspended,
+  /// it follows the new task: returns only when the job ultimately
+  /// stops running, not when the cancelled task resolves. If callers
+  /// keep running without pause, this method never returns — that
+  /// matches the contract ("settled" means "not currently running").
+  ///
+  /// Does not propagate cancellation. If the calling `Task` is
+  /// cancelled mid-await, this method still waits for the job to
+  /// settle — the task is owned by the job and continues regardless.
+  /// Callers needing to bail early on cancellation should follow
+  /// with `try Task.checkCancellation()`.
+  public func awaitSettled() async {
+    while phase == .running {
+      await runningTask?.value
+    }
+  }
 }
