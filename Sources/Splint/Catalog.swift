@@ -40,11 +40,37 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
   @ObservationIgnored private var task: Task<Void, Never>?
   @ObservationIgnored private var fetchGeneration: UInt64 = 0
 
-  /// Underlying task for the most recent fetch. Exposed to tests so
-  /// they can synchronize deterministically on fetch completion instead
-  /// of polling ``phase``.
+  /// Underlying task for the most recent fetch. Exposed under
+  /// `@_spi(Internal)` so tests can assert on Task identity (e.g. that
+  /// a superseded task is no longer the current one). Production
+  /// callers wanting to await load completion should use
+  /// ``awaitSettled()`` instead.
   @_spi(Internal)
   public var currentTask: Task<Void, Never>? { task }
+
+  /// Suspend until the most recent ``load(_:)`` (or ``refresh()`` /
+  /// ``retry()``) reaches a terminal ``Phase`` — `.completed` or
+  /// `.failed`. Returns immediately if no load has been kicked off, or
+  /// if the most recent load already finished.
+  ///
+  /// Use this to sequence "load then proceed" flows in production
+  /// code: `.refreshable` closures, multi-catalog dependency chains,
+  /// or cached-then-fresh launch logic.
+  ///
+  /// ```swift
+  /// catalog.load(criteria)
+  /// await catalog.awaitSettled()
+  /// // catalog.items now reflects the completed (or failed) load
+  /// ```
+  ///
+  /// Does not propagate cancellation. If the calling `Task` is
+  /// cancelled mid-await, this method still waits for the in-flight
+  /// load to finish — the load is owned by the catalog and continues
+  /// regardless. Callers needing to bail early on cancellation should
+  /// follow with `try Task.checkCancellation()`.
+  public func awaitSettled() async {
+    await task?.value
+  }
 
   /// - Parameters:
   ///   - initialItems: A seed populating ``items`` before any fetch. Use

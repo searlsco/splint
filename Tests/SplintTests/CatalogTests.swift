@@ -239,6 +239,33 @@ struct CatalogTests {
     await waitUntil { c.phase == .completed }
     #expect(c.items.count == 1)
   }
+
+  @Test func awaitSettledWaitsForInFlightLoad() async {
+    let gate = AsyncGate()
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      await gate.wait()
+      return [TestItem(id: 1, name: "A", score: 1)]
+    }
+    c.load(TestCriteria(category: "x"))
+    await waitUntil { c.phase == .running }
+    Task { await gate.open() }
+    await c.awaitSettled()
+    #expect(c.phase == .completed)
+    #expect(c.items.count == 1)
+  }
+
+  @Test func awaitSettledReturnsImmediatelyWhenIdle() async {
+    let c = makeCatalog()
+    await c.awaitSettled()
+    #expect(c.phase == .idle)
+  }
+
+  @Test func awaitSettledReturnsAfterFailure() async {
+    let c = Catalog<TestItem, TestCriteria> { _ in throw Boom(msg: "nope") }
+    c.load(TestCriteria(category: "x"))
+    await c.awaitSettled()
+    #expect(c.phase == .failed("nope"))
+  }
 }
 
 // MARK: - Test helpers

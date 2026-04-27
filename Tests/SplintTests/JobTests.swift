@@ -170,4 +170,31 @@ struct JobTests {
     await waitUntil { job.phase == .completed }
     #expect(job.value == 7)
   }
+
+  @Test func awaitSettledWaitsForInFlightRun() async {
+    let gate = AsyncGate()
+    let job = Job<Int>()
+    job.run {
+      await gate.wait()
+      return 42
+    }
+    await waitUntil { job.phase == .running }
+    Task { await gate.open() }
+    await job.awaitSettled()
+    #expect(job.phase == .completed)
+    #expect(job.value == 42)
+  }
+
+  @Test func awaitSettledReturnsImmediatelyWhenIdle() async {
+    let job = Job<Int>()
+    await job.awaitSettled()
+    #expect(job.phase == .idle)
+  }
+
+  @Test func awaitSettledReturnsAfterFailure() async {
+    let job = Job<Int>()
+    job.run { throw Boom(msg: "nope") }
+    await job.awaitSettled()
+    #expect(job.phase == .failed("nope"))
+  }
 }
