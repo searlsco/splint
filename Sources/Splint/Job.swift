@@ -19,6 +19,14 @@ public final class Job<Value: Sendable> {
 
   @ObservationIgnored private var runningTask: Task<Void, Never>?
 
+  /// Underlying task for the most recent ``run(priority:task:)``.
+  /// Exposed under `@_spi(Internal)` so tests can synchronize on the
+  /// specific task instance (e.g. await its completion deterministically
+  /// when verifying supersede behavior). Production callers wanting to
+  /// await run completion should use ``awaitSettled()`` instead.
+  @_spi(Internal)
+  public var currentTask: Task<Void, Never>? { runningTask }
+
   public init() {}
 
   /// Run an async operation, transferring its result into the Job's

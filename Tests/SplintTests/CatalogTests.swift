@@ -271,13 +271,18 @@ struct CatalogTests {
   /// method must continue waiting until the catalog reaches a settled
   /// phase — not return when the cancelled task resolves while a new
   /// task is still running.
+  ///
+  /// Synchronization is deterministic: the first task uses
+  /// `Task.yield()` so cancellation propagates without wall-clock
+  /// delay, and the test waits on the captured `task1Ref` to know
+  /// task1 has fully exited before opening the gate that frees task2.
   @Test func awaitSettledWaitsThroughSupersede() async {
     let gate2 = AsyncGate()
     let counter = Counter()
     let c = Catalog<TestItem, TestCriteria> { _ in
       let n = await counter.increment()
       if n == 1 {
-        while !Task.isCancelled { try? await Task.sleep(for: .milliseconds(5)) }
+        while !Task.isCancelled { await Task.yield() }
         throw CancellationError()
       }
       await gate2.wait()
@@ -285,17 +290,20 @@ struct CatalogTests {
     }
     c.load(TestCriteria(category: "first"))
     await waitUntil { c.phase == .running }
+    let task1Ref = c.currentTask
     let settled = Task { @MainActor in
       await c.awaitSettled()
       return c.phase
     }
-    // Give `awaitSettled` time to capture task1 before we supersede it.
-    try? await Task.sleep(for: .milliseconds(50))
+    // Yield so `settled.body` reaches its `await task?.value` suspension
+    // on task1 before we supersede it.
+    await Task.yield()
     c.load(TestCriteria(category: "second"))
-    // Hold the second task gated so that, if `awaitSettled` returns
-    // prematurely (when task1's cancellation propagates), we observe
-    // `.running` rather than `.completed`. Then release.
-    try? await Task.sleep(for: .milliseconds(50))
+    // Deterministic wait for task1 to exit (cancellation → catch → return).
+    // After this, a single-task `awaitSettled` would observe phase=.running
+    // (task2 is gated). The loop impl will continue to await task2.
+    await task1Ref?.value
+    await Task.yield()
     Task { await gate2.open() }
     let observedPhase = await settled.value
     #expect(observedPhase == .completed)
