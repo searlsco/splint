@@ -158,8 +158,8 @@ it doesn't gate where the package builds.
 
 ## Git workflow
 
-- **Direct commits to `main`.** No PR ceremony for solo work. Tags are cut
-  from `main`.
+- **Feature work goes through pull requests.** Branch, commit, push,
+  open a PR, merge. Tags are cut from `main` after the PR lands.
 
 ## Community files
 
