@@ -240,6 +240,19 @@ struct CatalogTests {
     #expect(c.items.count == 1)
   }
 
+  @Test func noCriteriaConvenienceAcceptsInitialItems() async {
+    let seed = [TestItem(id: 1, name: "seed", score: 0)]
+    let fresh = [TestItem(id: 2, name: "fresh", score: 1)]
+    let c = Catalog<TestItem, NoCriteria>(initialItems: seed) {
+      fresh
+    }
+    // Seed is visible before any load.
+    #expect(c.items == seed)
+    c.load()
+    await waitUntil { c.phase == .completed }
+    #expect(c.items == fresh)
+  }
+
   @Test func awaitSettledWaitsForInFlightLoad() async {
     let gate = AsyncGate()
     let c = Catalog<TestItem, TestCriteria> { _ in

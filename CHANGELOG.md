@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `Catalog<Item, NoCriteria>.init(initialItems:fetch:)` — seeded form of
+  the parameter-free convenience init. Combines `initialItems:`
+  (cache-first / disk-snapshot) with the existing parameter-free
+  `init(fetch:)` so cache-first parameter-free catalogs avoid dropping
+  back to the base init's `_ in` placeholder
+  ([#37](https://github.com/searlsco/splint/issues/37)).
+
 ## [0.6.1] - 2026-04-27
 
 ### Added
