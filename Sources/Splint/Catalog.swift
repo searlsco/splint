@@ -81,6 +81,10 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
     }
   }
 
+  /// When `Criteria == NoCriteria`, prefer the convenience overloads on
+  /// ``NoCriteria`` that drop the unused criteria from the fetch
+  /// signature.
+  ///
   /// - Parameters:
   ///   - initialItems: A seed populating ``items`` before any fetch. Use
   ///     this to show a cached/snapshot copy on cold launch so consumers
@@ -160,6 +164,14 @@ extension Catalog where Criteria == NoCriteria {
   /// Convenience init for parameter-free catalogs.
   public convenience init(fetch: @escaping @Sendable () async throws -> [Item]) {
     self.init { _ in try await fetch() }
+  }
+
+  /// Convenience init for parameter-free catalogs with a seed.
+  public convenience init(
+    initialItems: [Item],
+    fetch: @escaping @Sendable () async throws -> [Item]
+  ) {
+    self.init(initialItems: initialItems) { _ in try await fetch() }
   }
 
   /// Load with no criteria.
