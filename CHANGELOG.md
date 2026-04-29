@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-29
+
 ### Added
 
 - `Catalog<Item, NoCriteria>.init(initialItems:fetch:)` — seeded form of
