@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Selection<ID>.init()` (parameterless) and `Job<Value>.init()` are now
+  `nonisolated`, allowing construction from any actor context. This lets
+  these primitives be used as the `defaultValue` of a SwiftUI
+  `EnvironmentKey`, which is read from nonisolated contexts. Property
+  reads and writes on these types remain `@MainActor`-isolated; only
+  parameterless construction is loosened.
+
+  `Selection`'s previous combined initializer
+  `init(_ initial: ID? = nil)` is split into a `nonisolated init()`
+  and an unchanged `@MainActor init(_ initial: ID?)`. Existing call
+  sites — `Selection<X>()`, `Selection<X>("seed")`,
+  `Selection<X>(nil)` — continue to compile without modification
+  ([#39](https://github.com/searlsco/splint/issues/39)).
+
+  Not in this release: seeded `Selection` construction
+  (`Selection<X>("seed")`) and `Setting` construction remain
+  `@MainActor`. Both initializers write to `@Observable` stored
+  properties, which the Swift 6 compiler treats as
+  main-actor-isolated even from `init` bodies; relaxing them would
+  require dropping `@MainActor` from the type or a
+  `nonisolated(unsafe)` workaround, neither of which preserves the
+  property-access guardrail.
+
 ## [0.7.0] - 2026-04-29
 
 ### Added
