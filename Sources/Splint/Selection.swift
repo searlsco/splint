@@ -11,8 +11,16 @@ public final class Selection<ID: Hashable & Sendable> {
   /// The currently selected identifier, or `nil` if nothing is selected.
   public var current: ID?
 
-  /// Create a selection with an optional initial value.
-  public init(_ initial: ID? = nil) {
+  /// Create an empty selection.
+  ///
+  /// Construction is `nonisolated`; property reads and writes remain
+  /// `@MainActor`. This lets `Selection` be used as the
+  /// `defaultValue` of a SwiftUI `EnvironmentKey`, which is read from
+  /// nonisolated contexts.
+  public nonisolated init() {}
+
+  /// Create a selection seeded with an initial value.
+  public init(_ initial: ID?) {
     self.current = initial
   }
 }
