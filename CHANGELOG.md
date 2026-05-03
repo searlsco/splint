@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-05-02
+
 ### Changed
 
 - Enables `Selection<ID>()` and `Job<Value>()` as
