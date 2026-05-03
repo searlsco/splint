@@ -187,6 +187,68 @@ struct CatalogTests {
     #expect(c[id: 99] == nil)
   }
 
+  @Test func subscriptReflectsItemsAfterRefresh() async {
+    let counter = Counter()
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      let n = await counter.increment()
+      return n == 1
+        ? [TestItem(id: 1, name: "first", score: 1)]
+        : [TestItem(id: 2, name: "second", score: 2)]
+    }
+    c.load(TestCriteria(category: "x"))
+    await waitUntil { c.phase == .completed }
+    #expect(c[id: 1]?.name == "first")
+    #expect(c[id: 2] == nil)
+    c.refresh()
+    await waitUntil { c.items.first?.id == 2 }
+    #expect(c[id: 1] == nil)
+    #expect(c[id: 2]?.name == "second")
+  }
+
+  @Test func subscriptReturnsNilAfterCriteriaChangeClearsItems() async {
+    let gate = AsyncGate()
+    let counter = Counter()
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      let n = await counter.increment()
+      if n > 1 { await gate.wait() }
+      return [TestItem(id: n, name: "X", score: n)]
+    }
+    c.load(TestCriteria(category: "a"))
+    await waitUntil { c.phase == .completed }
+    #expect(c[id: 1]?.name == "X")
+    c.load(TestCriteria(category: "b"))
+    // Criteria change clears items synchronously; subscript must follow.
+    #expect(c[id: 1] == nil)
+    await gate.open()
+    await waitUntil { c.phase == .completed && !c.items.isEmpty }
+    #expect(c[id: 2]?.name == "X")
+  }
+
+  @Test func subscriptHonorsSeededInitialItems() {
+    let seed = [
+      TestItem(id: 1, name: "seed-a", score: 0),
+      TestItem(id: 2, name: "seed-b", score: 0),
+    ]
+    let c = Catalog<TestItem, TestCriteria>(initialItems: seed) { _ in [] }
+    // Subscript must work before any load() — the seed populates the index.
+    #expect(c[id: 1]?.name == "seed-a")
+    #expect(c[id: 2]?.name == "seed-b")
+    #expect(c[id: 99] == nil)
+  }
+
+  @Test func subscriptKeepsFirstOccurrenceForDuplicateIDs() async {
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      [
+        TestItem(id: 1, name: "first", score: 1),
+        TestItem(id: 1, name: "second", score: 2),
+      ]
+    }
+    c.load(TestCriteria(category: "x"))
+    await waitUntil { c.phase == .completed }
+    // Matches today's items.first { $0.id == id } semantics.
+    #expect(c[id: 1]?.name == "first")
+  }
+
   @Test func initialItemsSeedsItemsBeforeAnyLoad() {
     let seed = [TestItem(id: 1, name: "seed", score: 0)]
     let c = Catalog<TestItem, TestCriteria>(initialItems: seed) { _ in [] }

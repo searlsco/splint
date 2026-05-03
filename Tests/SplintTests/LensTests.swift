@@ -124,6 +124,61 @@ struct LensTests {
     #expect(l.items.map(\.score) == [9, 5, 1])
   }
 
+  @Test func subscriptReturnsMatchingItem() async {
+    let c = await loadedCatalog(sample)
+    let l = Lens<TestItem>(source: c)
+    #expect(l[id: 1]?.name == "banana")
+    #expect(l[id: 99] == nil)
+  }
+
+  @Test func subscriptReturnsNilForFilteredOutItem() async {
+    let c = await loadedCatalog(sample)
+    let l = Lens<TestItem>(source: c, filter: { $0.score >= 5 })
+    // cherry (id 3, score 1) is in the source but filtered out.
+    #expect(l[id: 1]?.name == "banana")
+    #expect(l[id: 2]?.name == "apple")
+    #expect(l[id: 3] == nil)
+  }
+
+  @Test func subscriptReflectsSourceChange() async {
+    let counter = Counter()
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      let n = await counter.increment()
+      return [TestItem(id: n, name: "x", score: n)]
+    }
+    c.load(TestCriteria(category: "a"))
+    await waitUntil { c.phase == .completed }
+    let l = Lens<TestItem>(source: c)
+    await waitUntil { l[id: 1] != nil }
+    #expect(l[id: 1]?.score == 1)
+    #expect(l[id: 2] == nil)
+    c.refresh()
+    await waitUntil { l[id: 2] != nil }
+    #expect(l[id: 1] == nil)
+    #expect(l[id: 2]?.score == 2)
+  }
+
+  @Test func subscriptReflectsFilterUpdate() async {
+    let c = await loadedCatalog(sample)
+    let l = Lens<TestItem>(source: c)
+    #expect(l[id: 3]?.name == "cherry")
+    l.updateFilter { $0.score >= 5 }
+    #expect(l[id: 3] == nil)
+    l.updateFilter { _ in true }
+    #expect(l[id: 3]?.name == "cherry")
+  }
+
+  @Test func subscriptKeepsFirstOccurrenceForDuplicateIDs() async {
+    // Two items share id 1; lens should surface the first one — same
+    // semantics as Catalog's items.first { $0.id == id }.
+    let c = await loadedCatalog([
+      TestItem(id: 1, name: "first", score: 1),
+      TestItem(id: 1, name: "second", score: 2),
+    ])
+    let l = Lens<TestItem>(source: c)
+    #expect(l[id: 1]?.name == "first")
+  }
+
   @Test func clearsWhenSourceClearsOnCriteriaChange() async {
     // First load populates.
     let counter = Counter()

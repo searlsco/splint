@@ -28,7 +28,9 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
   /// the current non-nil criteria; preserved across a first load (so
   /// seeded items stay visible until the first fetch completes) and
   /// across ``refresh()``.
-  public private(set) var items: [Item] = []
+  public private(set) var items: [Item] = [] {
+    didSet { rebuildItemsByID() }
+  }
   /// The criteria used for the most recent (or in-flight) load.
   public private(set) var criteria: Criteria?
   /// Fetch lifecycle phase.
@@ -39,6 +41,7 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
   @ObservationIgnored private let fetch: @Sendable (Criteria) async throws -> [Item]
   @ObservationIgnored private var task: Task<Void, Never>?
   @ObservationIgnored private var fetchGeneration: UInt64 = 0
+  @ObservationIgnored private var itemsByID: [Item.ID: Item] = [:]
 
   /// Underlying task for the most recent fetch. Exposed under
   /// `@_spi(Internal)` so tests can assert on Task identity (e.g. that
@@ -102,6 +105,9 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
   ) {
     self.items = initialItems
     self.fetch = fetch
+    // Property observers (didSet) do not fire for assignments inside an
+    // init body, so seed the index manually after the stored property is set.
+    rebuildItemsByID()
   }
 
   /// Load with `criteria`. If `criteria` differs from an existing non-nil
@@ -132,10 +138,16 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
     refresh()
   }
 
-  /// Find an item by id. Convenience for detail views receiving an id from
-  /// navigation.
+  /// Find an item by id. O(1). Convenience for detail views receiving an id
+  /// from navigation. When ``items`` contains multiple entries with the same
+  /// id, the first occurrence wins.
   public subscript(id id: Item.ID) -> Item? {
-    items.first { $0.id == id }
+    _ = items
+    return itemsByID[id]
+  }
+
+  private func rebuildItemsByID() {
+    itemsByID = Dictionary(items.lazy.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
 
   private func performFetch(_ criteria: Criteria) {
