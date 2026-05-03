@@ -41,6 +41,16 @@ inventing a new type.
 Pair with SwiftUI: `.task(id: channel.id) { catalog.load(...) }` gives
 you free cancellation when the id changes.
 
+## Looking up by id
+
+Use `catalog[id: id]` / `lens[id: id]` / `groupedLens[id: id]` — never
+`.items.first(where: { $0.id == id })`. The subscript is O(1) (backed
+by a private id index), and on `Lens` / `GroupedLens` it respects the
+filter — an item filtered out returns `nil` even if the source has
+it, which is almost always what call sites want. Duplicate ids
+resolve to the first occurrence, matching the linear-scan semantics
+it replaces.
+
 ## Catalog lifecycle
 
 Every catalog is `@State` on the narrowest view that fully contains its
