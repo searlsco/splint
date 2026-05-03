@@ -358,6 +358,68 @@ struct GroupedLensTests {
     #expect(!l.items.isEmpty)
   }
 
+  @Test func subscriptReturnsMatchingItem() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { $0.name.prefix(1).lowercased() }
+    )
+    #expect(l[id: 1]?.name == "banana")
+    #expect(l[id: 99] == nil)
+  }
+
+  @Test func subscriptReturnsNilForFilteredOutItem() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      filter: { $0.score >= 5 },
+      categorize: { $0.name.prefix(1).lowercased() }
+    )
+    // cherry (id 3, score 1) is in the source but filtered out.
+    #expect(l[id: 1]?.name == "banana")
+    #expect(l[id: 3] == nil)
+  }
+
+  @Test func subscriptReflectsSourceChange() async {
+    let counter = Counter()
+    let c = Catalog<TestItem, TestCriteria> { _ in
+      let n = await counter.increment()
+      return [TestItem(id: n, name: "x", score: n)]
+    }
+    c.load(TestCriteria(category: "a"))
+    await waitUntil { c.phase == .completed }
+    let l = GroupedLens<TestItem, Int>(source: c, categorize: { $0.score })
+    await waitUntil { l[id: 1] != nil }
+    #expect(l[id: 1]?.score == 1)
+    #expect(l[id: 2] == nil)
+    c.refresh()
+    await waitUntil { l[id: 2] != nil }
+    #expect(l[id: 1] == nil)
+    #expect(l[id: 2]?.score == 2)
+  }
+
+  @Test func subscriptReflectsFilterUpdate() async {
+    let c = await loadedCatalog(sample)
+    let l = GroupedLens<TestItem, String>(
+      source: c,
+      categorize: { $0.name.prefix(1).lowercased() }
+    )
+    #expect(l[id: 3]?.name == "cherry")
+    l.updateFilter { $0.score >= 5 }
+    #expect(l[id: 3] == nil)
+    l.updateFilter { _ in true }
+    #expect(l[id: 3]?.name == "cherry")
+  }
+
+  @Test func subscriptKeepsFirstOccurrenceForDuplicateIDs() async {
+    let c = await loadedCatalog([
+      TestItem(id: 1, name: "first", score: 1),
+      TestItem(id: 1, name: "second", score: 2),
+    ])
+    let l = GroupedLens<TestItem, Int>(source: c, categorize: { $0.score })
+    #expect(l[id: 1]?.name == "first")
+  }
+
   @Test func clearsWhenSourceClearsOnCriteriaChange() async {
     let counter = Counter()
     let c = Catalog<TestItem, TestCriteria> { _ in
