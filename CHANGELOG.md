@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-03
+
 ### Changed
 
 - `Catalog.subscript(id:)` is now O(1). The previous implementation
