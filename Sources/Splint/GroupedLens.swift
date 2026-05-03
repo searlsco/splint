@@ -29,7 +29,9 @@ public final class GroupedLens<
 > {
   /// The filtered and sorted projection of the source. Always
   /// populated, regardless of whether a categorizer is set.
-  public private(set) var items: [Item] = []
+  public private(set) var items: [Item] = [] {
+    didSet { rebuildItemsByID() }
+  }
 
   /// The grouped projection, ordered by `Category`'s `Comparable`.
   /// Empty when ``updateCategories(_:)`` has not been called or was
@@ -40,6 +42,7 @@ public final class GroupedLens<
   @ObservationIgnored private var filter: @Sendable (Item) -> Bool
   @ObservationIgnored private var order: (@Sendable (Item, Item) -> Bool)?
   @ObservationIgnored private var categorize: (@Sendable (Item, [Item], [Item]) -> Category)?
+  @ObservationIgnored private var itemsByID: [Item.ID: Item] = [:]
 
   public init<Criteria: Equatable & Sendable>(
     source: Catalog<Item, Criteria>,
@@ -184,6 +187,20 @@ public final class GroupedLens<
     groups = buckets.keys.sorted().map { key in
       (category: key, items: buckets[key]!)
     }
+  }
+
+  /// Find an item by id within the lens's filtered projection. O(1).
+  /// Returns `nil` if `id` is not present in ``items`` after filtering —
+  /// even if it exists in the source catalog. When the projection
+  /// contains multiple entries with the same id, the first occurrence
+  /// wins.
+  public subscript(id id: Item.ID) -> Item? {
+    _ = items
+    return itemsByID[id]
+  }
+
+  private func rebuildItemsByID() {
+    itemsByID = Dictionary(items.lazy.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
 
   private func observe() {

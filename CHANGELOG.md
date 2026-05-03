@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `Catalog.subscript(id:)` is now O(1). The previous implementation
+  was a linear scan over `items`; in selection-driven SwiftUI code a
+  single body evaluation can resolve "which item is selected right
+  now" several times across child views (sidebar, content, detail) on
+  every keystroke, every `.onChange`, every selection transition that
+  observers care about. The catalog now maintains a private id-keyed
+  dictionary, rebuilt whenever `items` is reassigned, so id lookups
+  are constant time. Behavior on duplicate ids is preserved — when
+  multiple items share an id, the first occurrence wins, matching
+  the prior `items.first { $0.id == id }` semantics
+  ([#42](https://github.com/searlsco/splint/issues/42)).
+
+### Added
+
+- `Lens.subscript(id:)` and `GroupedLens.subscript(id:)` — O(1) id
+  lookup over the lens's filtered projection. An item present in the
+  source catalog but excluded by `filter` returns `nil`, matching the
+  intuitive reading: a lens reports what it shows. Same first-wins
+  semantics on duplicate ids as `Catalog`.
+
 ## [0.7.1] - 2026-05-02
 
 ## [0.7.1] - 2026-05-02
