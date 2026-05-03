@@ -27,7 +27,10 @@ public final class Job<Value: Sendable> {
   @_spi(Internal)
   public var currentTask: Task<Void, Never>? { runningTask }
 
-  public init() {}
+  /// Construction is `nonisolated`; property reads and writes remain
+  /// `@MainActor`. This lets `Job` be used as the `defaultValue` of a
+  /// SwiftUI `EnvironmentKey`, which is read from nonisolated contexts.
+  public nonisolated init() {}
 
   /// Run an async operation, transferring its result into the Job's
   /// ``value``.
