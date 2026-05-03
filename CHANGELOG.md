@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- `Selection<ID>.init()` (parameterless) and `Job<Value>.init()` are now
-  `nonisolated`, allowing construction from any actor context. This lets
-  these primitives be used as the `defaultValue` of a SwiftUI
-  `EnvironmentKey`, which is read from nonisolated contexts. Property
-  reads and writes on these types remain `@MainActor`-isolated; only
-  parameterless construction is loosened.
+- Enables `Selection<ID>()` and `Job<Value>()` as
+  `EnvironmentKey.defaultValue` in projects using Splint primitives in
+  SwiftUI environment values. `Selection<ID>.init()` (parameterless)
+  and `Job<Value>.init()` are now `nonisolated`, allowing construction
+  from any actor context (`EnvironmentKey.defaultValue` is a
+  nonisolated protocol requirement). Property reads and writes on
+  these types remain `@MainActor`-isolated; only parameterless
+  construction is loosened.
 
   `Selection`'s previous combined initializer
   `init(_ initial: ID? = nil)` is split into a `nonisolated init()`
