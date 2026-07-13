@@ -14,6 +14,12 @@ import Observation
 /// store is an App Group suite (`UserDefaults(suiteName: "group.…")`),
 /// the same mechanism keeps Settings in sync between the host app and
 /// its extensions via `userdefaultsd`.
+///
+/// Keys containing a dot (e.g. `"learner.targetLanguage"`) can't use
+/// KVO — it treats the dot as key-path traversal and never fires — so
+/// they sync via `UserDefaults.didChangeNotification` instead. That
+/// fallback is same-process only: cross-process App Group sync
+/// requires a dot-free key.
 @Observable
 @MainActor
 public final class Setting<Value: SettingValue> {
@@ -38,6 +44,10 @@ public final class Setting<Value: SettingValue> {
   // after `init` returns.
   @ObservationIgnored private nonisolated(unsafe) let store: UserDefaults
   @ObservationIgnored private let observer: SettingObserver
+  /// Non-nil only for dotted keys, which use the notification fallback
+  /// instead of KVO. `NotificationCenter.removeObserver` is
+  /// thread-safe, so `deinit` may touch this.
+  @ObservationIgnored private nonisolated(unsafe) var notificationToken: (any NSObjectProtocol)?
   @ObservationIgnored private let read: (UserDefaults, String) -> Value?
   @ObservationIgnored private let write: (UserDefaults, String, Value) -> Void
 
@@ -97,13 +107,34 @@ public final class Setting<Value: SettingValue> {
         }
       }
     }
-    // Do NOT pass `.initial` — each init already seeded `value` by
-    // reading the store directly.
-    store.addObserver(observer, forKeyPath: key, options: [.new], context: nil)
+    if key.contains(".") {
+      // KVO interprets a dot as nested key-path traversal, so it never
+      // fires for a defaults key like "learner.targetLanguage" (the
+      // write persists; the observation is just silently dead). Fall
+      // back to `didChangeNotification`, which fires for every
+      // same-process defaults change; `_applyExternalChange()`'s
+      // re-read + equality guard make the extra callbacks no-ops.
+      // Trade-off: unlike KVO, this does NOT observe other processes,
+      // so App Group host↔extension sync requires a dot-free key.
+      // `object: nil` because distinct `UserDefaults(suiteName:)`
+      // instances of the same suite post as distinct objects.
+      let onChange = observer.onChange
+      notificationToken = NotificationCenter.default.addObserver(
+        forName: UserDefaults.didChangeNotification, object: nil, queue: nil
+      ) { _ in onChange?() }
+    } else {
+      // Do NOT pass `.initial` — each init already seeded `value` by
+      // reading the store directly.
+      store.addObserver(observer, forKeyPath: key, options: [.new], context: nil)
+    }
   }
 
   nonisolated deinit {
-    store.removeObserver(observer, forKeyPath: key)
+    if let notificationToken {
+      NotificationCenter.default.removeObserver(notificationToken)
+    } else {
+      store.removeObserver(observer, forKeyPath: key)
+    }
   }
 
   /// Restore the default value and remove the underlying key from the store.

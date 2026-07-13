@@ -321,6 +321,57 @@ struct SettingTests {
     #expect(s.value == 7)
   }
 
+  // MARK: - Dotted keys
+
+  /// KVO treats a dot in a keyPath as nested key-path traversal, so
+  /// `UserDefaults` KVO never fires for keys like
+  /// `"learner.targetLanguage"` — the write persists but no observer
+  /// hears about it. `Setting` must fall back to
+  /// `UserDefaults.didChangeNotification` for such keys so
+  /// cross-instance sync still works.
+  @Test func dottedKeyInstancesStaySynchronized() async {
+    let store = freshStore()
+    let a = Setting<String>("learner.targetLanguage", default: "", store: store)
+    let b = Setting<String>("learner.targetLanguage", default: "", store: store)
+
+    a.value = "ja"
+    await drainMain()
+    #expect(b.value == "ja", "B should observe A's write despite the dotted key")
+
+    store.set("ko", forKey: "learner.targetLanguage")
+    await drainMain()
+    #expect(a.value == "ko", "A should observe direct store write")
+    #expect(b.value == "ko", "B should observe direct store write")
+  }
+
+  /// Dotted-key companion to footgun #12: `reset()`'s key removal must
+  /// propagate to the other instance through the notification path.
+  @Test func dottedKeyResetPropagates() async {
+    let store = freshStore()
+    let a = Setting<String>("learner.targetLanguage", default: "", store: store)
+    let b = Setting<String>("learner.targetLanguage", default: "", store: store)
+
+    a.value = "ja"
+    await drainMain()
+    #expect(b.value == "ja")
+
+    b.reset()
+    await drainMain()
+    #expect(a.value == "", "A should observe B's reset (key removed)")
+  }
+
+  /// Dotted-key companion to footgun #2: the notification path also
+  /// fires for our own persist, so the equality guard must keep a
+  /// single self-write to a single store hit.
+  @Test func dottedKeySelfWriteDoesNotLoop() async {
+    let store = freshCountingStore()
+    let s = Setting<String>("learner.targetLanguage", default: "", store: store)
+    s.value = "ja"
+    await drainMain()
+    #expect(store.setCount == 1, "self-write must hit the store exactly once")
+    #expect(s.value == "ja")
+  }
+
   /// Issue footgun #12. `reset()` removes the key from the store,
   /// which must propagate to other Setting instances on the same
   /// key — they should fall back to their default.
