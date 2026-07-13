@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-07-13
+
 ### Fixed
 
 - `Setting` instances bound to a key containing a dot (e.g.
