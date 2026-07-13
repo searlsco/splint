@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Setting` instances bound to a key containing a dot (e.g.
+  `"learner.targetLanguage"`) never synced: UserDefaults KVO treats
+  the dot as key-path traversal and silently never fires. Dotted keys
+  now fall back to `UserDefaults.didChangeNotification`. The fallback
+  is same-process only, so App Group cross-process sync still
+  requires a dot-free key (now documented).
+
 ## [0.8.0] - 2026-05-03
 
 ### Changed

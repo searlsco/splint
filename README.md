@@ -393,6 +393,13 @@ not a replacement for the coordinator itself.
   extensions). This is Apple's `userdefaultsd` behavior for
   entitlement-granted App Groups, surfaced through standard KVO —
   Splint adds no code of its own for cross-process notification.
+- **Dotted keys sync same-process only.** KVO treats a dot in a
+  keyPath as nested key-path traversal, so it never fires for a
+  defaults key like `"learner.targetLanguage"`. `Setting` detects the
+  dot and falls back to `UserDefaults.didChangeNotification`, which
+  keeps instances in sync within one process but does not observe
+  other processes. If you need App Group cross-process sync, use a
+  dot-free key.
 
 ## What Splint won't fix
 
