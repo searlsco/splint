@@ -33,11 +33,17 @@ fi
 # produces per-worker profraws that need merging.
 swift test --enable-code-coverage
 
-# Locate the profdata and test binary. swift test puts them here on Swift 6.x.
+# Locate the profdata and test binary. The bundle name and directory
+# layout drift across toolchains (Swift ≤6.3: SplintPackageTests in
+# .build/<triple>/debug; Swift 6.4: SplintTests.xctest under
+# .build/out/Products/Debug), so match any .xctest executable.
 PROFDATA="$(find .build -name default.profdata -path '*codecov*' | head -1)"
-BINARY="$(find .build -name 'SplintPackageTests' -type f -perm +111 | head -1)"
+BINARY="$(find .build -path '*.xctest/Contents/MacOS/*' -type f -perm +111 | head -1)"
+if [[ ! -x "$BINARY" ]]; then
+  BINARY="$(find .build -name 'SplintPackageTests' -type f -perm +111 | head -1)"
+fi
 [[ -f "$PROFDATA" ]] || { echo "error: default.profdata not found" >&2; exit 2; }
-[[ -x "$BINARY"  ]] || { echo "error: SplintPackageTests binary not found" >&2; exit 2; }
+[[ -x "$BINARY"  ]] || { echo "error: test binary not found under .build" >&2; exit 2; }
 
 # Export per-line coverage in lcov format (DA:line,count is authoritative)
 # and pipe through the coverage gate.
