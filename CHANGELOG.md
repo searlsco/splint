@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-23
+
 ### Added
 
 - `CloudSync`: mirrors a declared set of `UserDefaults` keys into iCloud
