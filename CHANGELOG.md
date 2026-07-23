@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `CloudSync`: mirrors a declared set of `UserDefaults` keys into iCloud
+  key-value storage (`NSUbiquitousKeyValueStore`), so `Setting`s on those
+  keys sync across devices — and across apps that share a ubiquity
+  key-value store identifier. Last-writer-wins; on `start()` an existing
+  iCloud value wins and local-only values upload (first-run migration).
+  Backed by the new `UbiquitousKeyValueStore` seam protocol.
+
 ## [0.8.1] - 2026-07-13
 
 ### Fixed
