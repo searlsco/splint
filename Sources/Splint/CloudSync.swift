@@ -64,9 +64,8 @@ public final class CloudSync {
   private static func scheduleAfterInitialSyncDelay(
     _ action: @escaping @MainActor @Sendable () -> Void
   ) {
-    Task { @MainActor in
-      try? await Task.sleep(for: .seconds(5))
-      action()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+      MainActor.assumeIsolated { action() }
     }
   }
   // coverage:ignore-end
