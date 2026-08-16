@@ -23,13 +23,17 @@ extension NSUbiquitousKeyValueStore: UbiquitousKeyValueStore {}
 /// further wiring.
 ///
 /// Conflict policy is last-writer-wins (iCloud's own semantics). On
-/// ``start()``, an existing iCloud value wins over the local one; a key
-/// that exists only locally is uploaded (first-run migration of a
-/// previously local-only preference). Afterward local writes push and
+/// ``start()``, existing iCloud values pull immediately. Local-only values
+/// wait briefly for iCloud's initial download before uploading (first-run
+/// migration of a previously local-only preference). Afterward local writes push and
 /// external iCloud changes pull, each reconciled by value equality so
 /// echo loops terminate on the first quiet pass.
 @MainActor
 public final class CloudSync {
+  typealias InitialReconcileScheduler = (
+    @escaping @MainActor @Sendable () -> Void
+  ) -> Void
+
   private let keys: [String]
   private let store: any UbiquitousKeyValueStore
   // Reachable from `deinit`, which runs nonisolated on `@MainActor`
@@ -37,21 +41,46 @@ public final class CloudSync {
   // thread-safe and `observers` is never mutated after `start()`.
   private nonisolated(unsafe) let defaults: UserDefaults
   private let center: NotificationCenter
+  private let scheduleInitialReconcile: InitialReconcileScheduler
   private nonisolated(unsafe) var observers: [any NSObjectProtocol] = []
+  private var initialReconcileGeneration = 0
+  private var initialReconcileCompleted = false
 
   /// `center` must be the center that receives Foundation's
   /// `UserDefaults.didChangeNotification` posts (the default center) in
   /// production; tests inject a fresh center and post equivalents.
-  public init(
+  public convenience init(
     keys: some Sequence<String>,
     defaults: UserDefaults = .standard,
     store: any UbiquitousKeyValueStore = NSUbiquitousKeyValueStore.default,
     center: NotificationCenter = .default
   ) {
+    self.init(
+      keys: keys, defaults: defaults, store: store, center: center,
+      scheduleInitialReconcile: Self.scheduleAfterInitialSyncDelay)
+  }
+
+  // coverage:ignore-start — Production clock timing is replaced by the injected scheduler in tests.
+  private static func scheduleAfterInitialSyncDelay(
+    _ action: @escaping @MainActor @Sendable () -> Void
+  ) {
+    Task { @MainActor in
+      try? await Task.sleep(for: .seconds(5))
+      action()
+    }
+  }
+  // coverage:ignore-end
+
+  init(
+    keys: some Sequence<String>, defaults: UserDefaults, store: any UbiquitousKeyValueStore,
+    center: NotificationCenter,
+    scheduleInitialReconcile: @escaping InitialReconcileScheduler
+  ) {
     self.keys = Array(keys)
     self.defaults = defaults
     self.store = store
     self.center = center
+    self.scheduleInitialReconcile = scheduleInitialReconcile
   }
 
   /// Installs both mirror directions and runs the startup reconcile.
@@ -67,7 +96,8 @@ public final class CloudSync {
         object: store, queue: .main
       ) { [weak self] note in
         let changed = note.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]
-        MainActor.assumeIsolated { self?.pull(changed) }
+        let reason = note.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int
+        MainActor.assumeIsolated { self?.receiveExternalChange(changed, reason: reason) }
       })
     observers.append(
       center.addObserver(
@@ -77,15 +107,8 @@ public final class CloudSync {
         MainActor.assumeIsolated { self?.push() }
       })
     store.synchronize()
-    for key in keys {
-      if let remote = store.object(forKey: key) {
-        guard !Self.equal(remote, defaults.object(forKey: key)) else { continue }
-        defaults.set(remote, forKey: key)
-      } else if let local = defaults.object(forKey: key) {
-        store.set(local, forKey: key)
-      }
-    }
-    store.synchronize()
+    pullPresentValues(nil)
+    deferInitialReconcile()
   }
 
   /// Uninstalls both mirror directions; local and iCloud values stay
@@ -93,6 +116,8 @@ public final class CloudSync {
   public func stop() {
     for observer in observers { center.removeObserver(observer) }
     observers.removeAll()
+    initialReconcileGeneration += 1
+    initialReconcileCompleted = false
   }
 
   nonisolated deinit {
@@ -113,11 +138,55 @@ public final class CloudSync {
     }
   }
 
+  private func receiveExternalChange(_ changed: [String]?, reason: Int?) {
+    if reason == NSUbiquitousKeyValueStoreInitialSyncChange {
+      initialReconcileCompleted = false
+      pullPresentValues(changed)
+      deferInitialReconcile()
+    } else {
+      pull(changed)
+    }
+  }
+
+  private func pullPresentValues(_ changed: [String]?) {
+    for key in changed ?? keys where keys.contains(key) {
+      guard let remote = store.object(forKey: key),
+        !Self.equal(remote, defaults.object(forKey: key))
+      else { continue }
+      defaults.set(remote, forKey: key)
+    }
+  }
+
+  private func deferInitialReconcile() {
+    initialReconcileGeneration += 1
+    let generation = initialReconcileGeneration
+    scheduleInitialReconcile { [weak self] in
+      guard let self, generation == initialReconcileGeneration, !observers.isEmpty else { return }
+      finishInitialReconcile()
+    }
+  }
+
+  private func finishInitialReconcile() {
+    var wrote = false
+    for key in keys {
+      if let remote = store.object(forKey: key) {
+        guard !Self.equal(remote, defaults.object(forKey: key)) else { continue }
+        defaults.set(remote, forKey: key)
+      } else if let local = defaults.object(forKey: key) {
+        wrote = true
+        store.set(local, forKey: key)
+      }
+    }
+    initialReconcileCompleted = true
+    if wrote { store.synchronize() }
+  }
+
   /// Pushes local values that differ from iCloud's. Fires on every
   /// same-process defaults change (Foundation's notification isn't
   /// key-scoped), so equality is what keeps it cheap and loop-free: a
   /// pull-provoked notification finds nothing to push.
   private func push() {
+    guard initialReconcileCompleted else { return }
     var wrote = false
     for key in keys {
       let local = defaults.object(forKey: key)
@@ -137,7 +206,7 @@ public final class CloudSync {
   private static func equal(_ a: Any?, _ b: Any?) -> Bool {
     switch (a, b) {
     case (nil, nil): true
-    case let (a?, b?): (a as? NSObject)?.isEqual(b) ?? false
+    case (let a?, let b?): (a as? NSObject)?.isEqual(b) ?? false
     default: false
     }
   }
