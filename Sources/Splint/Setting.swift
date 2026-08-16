@@ -214,7 +214,7 @@ extension Setting where Value: RawRepresentable, Value.RawValue: SettingValue {
 /// `onChange` is only written during `Setting.init` (before the
 /// observer is registered) and read from the KVO callback.
 private final class SettingObserver: NSObject, @unchecked Sendable {
-  var onChange: (() -> Void)?
+  var onChange: (@Sendable () -> Void)?
 
   override func observeValue(
     forKeyPath keyPath: String?,

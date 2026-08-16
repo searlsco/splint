@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `CloudSync` no longer uploads local-only preferences while iCloud's initial
+  key-value download may still be in progress. Existing cloud values can now
+  arrive before the deferred startup reconciliation without being overwritten;
+  an initial-sync notification restarts the safety delay.
+- `Setting`'s dotted-key notification bridge now carries its callback as
+  `@Sendable`, eliminating a Swift 6.4 concurrency warning.
+
 ## [0.9.0] - 2026-07-23
 
 ### Added
