@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-08-17
+
 ### Fixed
 
 - `CloudSync` no longer uploads local-only preferences while iCloud's initial
