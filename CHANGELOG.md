@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `CloudSync` is now strictly receive-only except when the app explicitly
+  mutates a mirrored `Setting`, superseding 0.9.1's timer-based mitigation
+  (which could still upload a local value over a real cloud preference
+  whenever iCloud's initial download took longer than its five-second
+  delay). Startup pulls already-delivered iCloud values and then waits;
+  values and deletions arriving later apply whenever their notification
+  lands, and a local-only value stays local until the user next changes
+  it. Assigning `Setting.value` or calling `reset()` uploads exactly that
+  key; direct `UserDefaults` writes no longer upload at all. A
+  quota-violation notification never deletes local state.
+
+### Changed
+
+- `Setting.reset()` now removes the key before restoring the default
+  value in memory, so the default is never transiently persisted to the
+  store on its way to removal.
+- `CloudSync`'s launch-time local-to-cloud migration is gone with the
+  timer: a preference that predates mirroring uploads on its next
+  explicit change rather than at startup.
+
 ## [0.9.1] - 2026-08-17
 
 ### Fixed

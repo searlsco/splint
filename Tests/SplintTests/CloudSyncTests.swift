@@ -9,6 +9,7 @@ import Testing
 private final class FakeUbiquitousStore: UbiquitousKeyValueStore {
   var values: [String: Any] = [:]
   var setCount = 0
+  var removeCount = 0
   var synchronizeCount = 0
 
   func object(forKey aKey: String) -> Any? { values[aKey] }
@@ -16,27 +17,23 @@ private final class FakeUbiquitousStore: UbiquitousKeyValueStore {
     setCount += 1
     values[aKey] = anObject
   }
-  func removeObject(forKey aKey: String) { values[aKey] = nil }
+  func removeObject(forKey aKey: String) {
+    removeCount += 1
+    values[aKey] = nil
+  }
   func synchronize() -> Bool {
     synchronizeCount += 1
     return true
   }
 }
 
+/// `Setting`'s KVO callback hops to the main actor via
+/// `DispatchQueue.main.async`; this sentinel lands after it (FIFO), so
+/// awaiting it guarantees pending external-change applications ran.
 @MainActor
-private final class DeferredActions {
-  private(set) var actions: [@MainActor @Sendable () -> Void] = []
-
-  func schedule(_ action: @escaping @MainActor @Sendable () -> Void) {
-    actions.append(action)
-  }
-
-  func runLast() {
-    actions.removeLast()()
-  }
-
-  func runFirst() {
-    actions.removeFirst()()
+private func drainMain() async {
+  await withCheckedContinuation { c in
+    DispatchQueue.main.async { c.resume() }
   }
 }
 
@@ -47,10 +44,12 @@ struct CloudSyncTests {
   private let suite: String
   /// Fresh per test: Foundation posts `UserDefaults.didChangeNotification`
   /// only to the default center, where parallel tests would cross-talk, so
-  /// each test posts its own equivalents here.
+  /// each test posts its own equivalents here. Tests that exercise real
+  /// `Setting` instances use `.default` instead (Setting posts its
+  /// mutation signal there); those stay parallel-safe because CloudSync
+  /// filters both observations by this test's unique store and defaults.
   private let center = NotificationCenter()
   private let store = FakeUbiquitousStore()
-  private let deferredActions = DeferredActions()
 
   init() {
     suite = "SplintTests.CloudSync.\(UUID().uuidString)"
@@ -58,14 +57,16 @@ struct CloudSyncTests {
     defaults.removePersistentDomain(forName: suite)
   }
 
-  private func sync(keys: [String] = ["mirrored"]) -> CloudSync {
-    CloudSync(
-      keys: keys, defaults: defaults, store: store, center: center,
-      scheduleInitialReconcile: deferredActions.schedule)
+  private func sync(
+    keys: [String] = ["mirrored"], center: NotificationCenter? = nil
+  ) -> CloudSync {
+    CloudSync(keys: keys, defaults: defaults, store: store, center: center ?? self.center)
   }
 
-  private func postDefaultsChange() {
-    center.post(name: UserDefaults.didChangeNotification, object: defaults)
+  private func postSettingMutation(key: String) {
+    center.post(
+      name: SettingMutation.didMutate, object: defaults,
+      userInfo: [SettingMutation.keyKey: key])
   }
 
   private func postExternalChange(keys: [String]?, reason: Int? = nil) {
@@ -77,50 +78,16 @@ struct CloudSyncTests {
       object: store, userInfo: userInfo)
   }
 
-  @Test func startDefersUploadingALocalOnlyValue() {
+  // MARK: - Receive-only startup
+
+  @Test func startNeverUploadsALocalOnlyValue() {
     defaults.set("local", forKey: "mirrored")
     let sync = sync()
     sync.start()
 
     #expect(store.values["mirrored"] == nil)
-
-    deferredActions.runLast()
-
-    #expect(store.values["mirrored"] as? String == "local")
-  }
-
-  @Test func cloudValueArrivingBeforeDeferredReconcileWins() {
-    defaults.set("local", forKey: "mirrored")
-    let sync = sync()
-    sync.start()
-
-    store.values["mirrored"] = "cloud"
-    deferredActions.runLast()
-
-    #expect(defaults.string(forKey: "mirrored") == "cloud")
-    #expect(store.values["mirrored"] as? String == "cloud")
-  }
-
-  @Test func publicInitializerStartsAndStops() {
-    let sync = CloudSync(keys: ["mirrored"], defaults: defaults, store: store, center: center)
-
-    sync.start()
-    sync.stop()
-  }
-
-  @Test func initialSyncNotificationRestartsTheDeferredReconcile() {
-    defaults.set("local", forKey: "mirrored")
-    let sync = sync()
-    sync.start()
-
-    postExternalChange(keys: [], reason: NSUbiquitousKeyValueStoreInitialSyncChange)
-    deferredActions.runFirst()
-
-    #expect(store.values["mirrored"] == nil)
-
-    deferredActions.runLast()
-
-    #expect(store.values["mirrored"] as? String == "local")
+    #expect(store.setCount == 0)
+    #expect(defaults.string(forKey: "mirrored") == "local")
   }
 
   @Test func startPrefersTheCloudValueWhenBothExist() {
@@ -159,37 +126,21 @@ struct CloudSyncTests {
     #expect(defaults.string(forKey: "mirrored") == "newer local")
   }
 
-  @Test func localWritesPushToTheCloud() {
+  // MARK: - Pulling external changes
+
+  @Test func aCloudValueArrivingArbitrarilyLateReplacesTheLocalValue() {
+    defaults.set("local", forKey: "mirrored")
     let sync = sync()
     sync.start()
-    deferredActions.runLast()
-    defaults.set(42, forKey: "mirrored")
-    postDefaultsChange()
 
-    #expect(store.values["mirrored"] as? Int == 42)
-  }
-
-  @Test func localRemovalsRemoveFromTheCloud() {
-    defaults.set("kept", forKey: "mirrored")
-    let sync = sync()
-    sync.start()
-    deferredActions.runLast()
-    defaults.removeObject(forKey: "mirrored")
-    postDefaultsChange()
-
-    #expect(store.values["mirrored"] == nil)
-  }
-
-  @Test func externalChangesApplyToDefaults() {
-    let sync = sync()
-    sync.start()
-    store.values["mirrored"] = "from another device"
+    store.values["mirrored"] = "cloud, eventually"
     postExternalChange(keys: ["mirrored"])
 
-    #expect(defaults.string(forKey: "mirrored") == "from another device")
+    #expect(defaults.string(forKey: "mirrored") == "cloud, eventually")
+    #expect(store.setCount == 0)
   }
 
-  @Test func externalRemovalsClearDefaults() {
+  @Test func aCloudDeletionClearsTheLocalValue() {
     defaults.set("stale", forKey: "mirrored")
     store.values["mirrored"] = "stale"
     let sync = sync()
@@ -200,7 +151,7 @@ struct CloudSyncTests {
     #expect(defaults.object(forKey: "mirrored") == nil)
   }
 
-  @Test func externalChangesWithoutAKeyListReconcileEveryMirroredKey() {
+  @Test func externalChangesWithoutAKeyListPullEveryPresentMirroredKey() {
     let sync = sync(keys: ["a", "b"])
     sync.start()
     store.values["a"] = 1
@@ -209,6 +160,15 @@ struct CloudSyncTests {
 
     #expect(defaults.integer(forKey: "a") == 1)
     #expect(defaults.integer(forKey: "b") == 2)
+  }
+
+  @Test func externalChangesWithoutAKeyListDoNotTreatAbsenceAsDeletion() {
+    defaults.set("local", forKey: "mirrored")
+    let sync = sync()
+    sync.start()
+    postExternalChange(keys: nil)
+
+    #expect(defaults.string(forKey: "mirrored") == "local")
   }
 
   @Test func externalChangesToUnmirroredKeysAreIgnored() {
@@ -220,40 +180,133 @@ struct CloudSyncTests {
     #expect(defaults.object(forKey: "unmirrored") == nil)
   }
 
-  // The pull writes defaults, which in production immediately re-posts
-  // didChangeNotification; equality is what stops the bounce from writing
-  // back to the cloud.
-  @Test func aPulledChangeDoesNotEchoBackToTheCloud() {
+  @Test func initialSyncDeliveriesApplyValuesAndDeletions() {
+    defaults.set("stale", forKey: "mirrored")
+    store.values["other"] = "downloaded"
+    let sync = sync(keys: ["mirrored", "other"])
+    sync.start()
+    #expect(defaults.string(forKey: "mirrored") == "stale")
+
+    postExternalChange(
+      keys: ["mirrored", "other"], reason: NSUbiquitousKeyValueStoreInitialSyncChange)
+
+    #expect(defaults.string(forKey: "other") == "downloaded")
+    #expect(defaults.object(forKey: "mirrored") == nil)
+    #expect(store.setCount == 0)
+  }
+
+  @Test func accountChangeToAnAccountWithoutTheKeyClearsTheLocalValue() {
+    defaults.set("previous account's", forKey: "mirrored")
+    store.values["mirrored"] = "previous account's"
     let sync = sync()
     sync.start()
-    deferredActions.runLast()
+    store.values["mirrored"] = nil
+    postExternalChange(keys: ["mirrored"], reason: NSUbiquitousKeyValueStoreAccountChange)
+
+    #expect(defaults.object(forKey: "mirrored") == nil)
+    #expect(store.setCount == 0)
+  }
+
+  @Test func quotaViolationsNeverDeleteLocalValues() {
+    defaults.set("rejected upload", forKey: "mirrored")
+    let sync = sync()
+    sync.start()
+    postExternalChange(
+      keys: ["mirrored"], reason: NSUbiquitousKeyValueStoreQuotaViolationChange)
+
+    #expect(defaults.string(forKey: "mirrored") == "rejected upload")
+  }
+
+  // MARK: - Pushing explicit Setting mutations
+
+  @Test func assigningAMirroredSettingUploadsExactlyThatKey() {
+    let sync = sync(center: .default)
+    sync.start()
+    let setting = Setting("mirrored", default: "", store: defaults)
+
+    setting.value = "chosen"
+
+    #expect(store.values["mirrored"] as? String == "chosen")
+    #expect(store.setCount == 1)
+  }
+
+  @Test func assigningAnUnmirroredSettingNeverUploads() {
+    let sync = sync(center: .default)
+    sync.start()
+    let setting = Setting("unmirrored", default: "", store: defaults)
+
+    setting.value = "kept local"
+
+    #expect(store.values.isEmpty)
+    #expect(store.setCount == 0)
+  }
+
+  @Test func aDirectUserDefaultsWriteNeverUploads() {
+    let sync = sync(center: .default)
+    sync.start()
+
+    defaults.set("written behind Setting's back", forKey: "mirrored")
+
+    #expect(store.values.isEmpty)
+    #expect(store.setCount == 0)
+    #expect(store.synchronizeCount == 1)  // start()'s pull request only
+  }
+
+  @Test func resetRemovesTheUbiquitousKeyWithoutUploadingTheDefault() {
+    defaults.set("chosen", forKey: "mirrored")
+    store.values["mirrored"] = "chosen"
+    let sync = sync(center: .default)
+    sync.start()
+    let setting = Setting("mirrored", default: "factory", store: defaults)
+
+    setting.reset()
+
+    #expect(store.values["mirrored"] == nil)
+    #expect(store.removeCount == 1)
+    #expect(store.setCount == 0)
+    #expect(defaults.object(forKey: "mirrored") == nil)
+    #expect(setting.value == "factory")
+  }
+
+  @Test func aPulledCloudChangeNeverEchoesBackToTheCloud() async {
+    let sync = sync(center: .default)
+    sync.start()
+    let setting = Setting("mirrored", default: "", store: defaults)
+
     store.values["mirrored"] = "external"
-    postExternalChange(keys: ["mirrored"])
-    let writesBefore = store.setCount
-    postDefaultsChange()
+    NotificationCenter.default.post(
+      name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+      object: store,
+      userInfo: [NSUbiquitousKeyValueStoreChangedKeysKey: ["mirrored"]])
+    await drainMain()
 
-    #expect(store.setCount == writesBefore)
+    #expect(setting.value == "external")
+    #expect(store.setCount == 0)
   }
 
-  @Test func quietDefaultsChangesDoNotFlushTheCloudStore() {
-    let sync = sync()
+  @Test func multipleSettingsOnOneKeySyncLocallyWithASingleUpload() async {
+    let sync = sync(center: .default)
     sync.start()
-    deferredActions.runLast()
-    let flushesBefore = store.synchronizeCount
-    defaults.set("unrelated", forKey: "unmirrored")
-    postDefaultsChange()
+    let a = Setting("mirrored", default: "", store: defaults)
+    let b = Setting("mirrored", default: "", store: defaults)
 
-    #expect(store.synchronizeCount == flushesBefore)
+    a.value = "from a"
+    await drainMain()
+
+    #expect(b.value == "from a")
+    #expect(store.values["mirrored"] as? String == "from a")
+    #expect(store.setCount == 1)
   }
+
+  // MARK: - Lifecycle
 
   @Test func stopSilencesBothDirections() {
     let sync = sync()
     sync.start()
     sync.stop()
-    deferredActions.runLast()
 
     defaults.set("local", forKey: "mirrored")
-    postDefaultsChange()
+    postSettingMutation(key: "mirrored")
     #expect(store.values["mirrored"] == nil)
 
     store.values["mirrored"] = "cloud"
@@ -266,10 +319,28 @@ struct CloudSyncTests {
     sync?.start()
     sync = nil
     _ = sync
-    deferredActions.runLast()
+
+    defaults.set("local", forKey: "mirrored")
+    postSettingMutation(key: "mirrored")
+    #expect(store.values["mirrored"] == nil)
 
     store.values["mirrored"] = "cloud"
     postExternalChange(keys: ["mirrored"])
-    #expect(defaults.object(forKey: "mirrored") == nil)
+    #expect(defaults.string(forKey: "mirrored") == "local")
+  }
+
+  @Test func mutationsForAnotherDefaultsStoreAreIgnored() {
+    let otherSuite = "SplintTests.CloudSync.other.\(UUID().uuidString)"
+    let other = UserDefaults(suiteName: otherSuite)!
+    defer { other.removePersistentDomain(forName: otherSuite) }
+    other.set("someone else's", forKey: "mirrored")
+    let sync = sync()
+    sync.start()
+
+    center.post(
+      name: SettingMutation.didMutate, object: other,
+      userInfo: [SettingMutation.keyKey: "mirrored"])
+
+    #expect(store.values.isEmpty)
   }
 }
