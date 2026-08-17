@@ -63,6 +63,8 @@ observation. Pass model instances directly to child views.
 - ``Setting``
 - <doc:SettingValueGuide>
 - ``SettingValue``
+- <doc:CloudSyncGuide>
+- ``CloudSync``
 
 ### Secrets
 
