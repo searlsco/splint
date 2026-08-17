@@ -1,6 +1,17 @@
 import Foundation
 import Observation
 
+/// Internal signal a `Setting` posts (to `NotificationCenter.default`,
+/// with its `UserDefaults` store as the object) when the app explicitly
+/// mutates it — an assignment to `value` or a `reset()`. `CloudSync`
+/// treats this, and only this, as authorization to write the key's
+/// current local state to iCloud; externally-observed changes applied
+/// via `_applyExternalChange` never emit it, so pulls cannot echo back.
+enum SettingMutation {
+  static let didMutate = Notification.Name("SplintSettingDidMutate")
+  static let keyKey = "SplintSettingMutationKey"
+}
+
 /// A single typed user preference backed by `UserDefaults`.
 ///
 /// Prefer many small `Setting` instances over a single "settings object":
@@ -31,6 +42,7 @@ public final class Setting<Value: SettingValue> {
       // observed and bounce KVO indefinitely.
       guard !isApplyingExternalChange else { return }
       persist()
+      postMutation()
     }
   }
 
@@ -137,10 +149,16 @@ public final class Setting<Value: SettingValue> {
     }
   }
 
-  /// Restore the default value and remove the underlying key from the store.
+  /// Restore the default value and remove the underlying key from the
+  /// store. Ordered remove-first with the assignment guarded against
+  /// persisting, so the default value is never transiently written to
+  /// the store (and never uploaded by `CloudSync`) on the way to removal.
   public func reset() {
-    value = defaultValue
     store.removeObject(forKey: key)
+    isApplyingExternalChange = true
+    value = defaultValue
+    isApplyingExternalChange = false
+    postMutation()
   }
 
   /// Apply an externally-observed change to `value`. The KVO callback
@@ -180,6 +198,12 @@ public final class Setting<Value: SettingValue> {
 
   private func persist() {
     write(store, key, value)
+  }
+
+  private func postMutation() {
+    NotificationCenter.default.post(
+      name: SettingMutation.didMutate, object: store,
+      userInfo: [SettingMutation.keyKey: key])
   }
 }
 
