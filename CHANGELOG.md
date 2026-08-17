@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-08-17
+
 ### Fixed
 
 - `CloudSync` is now strictly receive-only except when the app explicitly
