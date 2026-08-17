@@ -27,6 +27,8 @@ private final class FakeUbiquitousStore: UbiquitousKeyValueStore {
   }
 }
 
+private enum Flavor: String, SettingValue { case plain, glossy }
+
 /// `Setting`'s KVO callback hops to the main actor via
 /// `DispatchQueue.main.async`; this sentinel lands after it (FIFO), so
 /// awaiting it guarantees pending external-change applications ran.
@@ -76,6 +78,19 @@ struct CloudSyncTests {
     center.post(
       name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
       object: store, userInfo: userInfo)
+  }
+
+  @Test func publicInitializerObservesTheDefaultCenter() {
+    let sync = CloudSync(keys: ["mirrored"], defaults: defaults, store: store)
+    sync.start()
+    store.values["mirrored"] = "cloud"
+    NotificationCenter.default.post(
+      name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+      object: store,
+      userInfo: [NSUbiquitousKeyValueStoreChangedKeysKey: ["mirrored"]])
+
+    #expect(defaults.string(forKey: "mirrored") == "cloud")
+    sync.stop()
   }
 
   // MARK: - Receive-only startup
@@ -180,18 +195,22 @@ struct CloudSyncTests {
     #expect(defaults.object(forKey: "unmirrored") == nil)
   }
 
-  @Test func initialSyncDeliveriesApplyValuesAndDeletions() {
-    defaults.set("stale", forKey: "mirrored")
+  /// A write attempted while iCloud's initial download is in progress
+  /// generates an initial-sync notification listing that key — with the
+  /// remote value possibly still nil because it hasn't downloaded yet.
+  /// Treating that as a deletion would destroy the value the user just
+  /// chose, so initial sync applies present values only.
+  @Test func initialSyncDeliveriesApplyValuesButNeverDeletions() {
+    defaults.set("just chosen", forKey: "mirrored")
     store.values["other"] = "downloaded"
     let sync = sync(keys: ["mirrored", "other"])
     sync.start()
-    #expect(defaults.string(forKey: "mirrored") == "stale")
 
     postExternalChange(
       keys: ["mirrored", "other"], reason: NSUbiquitousKeyValueStoreInitialSyncChange)
 
     #expect(defaults.string(forKey: "other") == "downloaded")
-    #expect(defaults.object(forKey: "mirrored") == nil)
+    #expect(defaults.string(forKey: "mirrored") == "just chosen")
     #expect(store.setCount == 0)
   }
 
@@ -298,6 +317,39 @@ struct CloudSyncTests {
     #expect(store.setCount == 1)
   }
 
+  @Test func aDottedKeySettingUploadsOnAssignment() {
+    let sync = sync(keys: ["dotted.mirrored"], center: .default)
+    sync.start()
+    let setting = Setting("dotted.mirrored", default: "", store: defaults)
+
+    setting.value = "chosen"
+
+    #expect(store.values["dotted.mirrored"] as? String == "chosen")
+  }
+
+  @Test func aRawRepresentableSettingUploadsItsRawValue() {
+    let sync = sync(center: .default)
+    sync.start()
+    let setting = Setting("mirrored", default: Flavor.plain, store: defaults)
+
+    setting.value = .glossy
+
+    #expect(store.values["mirrored"] as? String == "glossy")
+  }
+
+  @Test func mutationsBeforeStartStayLocalUntilTheNextMutationAfterStart() {
+    let setting = Setting("mirrored", default: "", store: defaults)
+    setting.value = "too early"
+    let sync = sync(center: .default)
+    sync.start()
+
+    #expect(store.values["mirrored"] == nil)
+
+    setting.value = "after start"
+
+    #expect(store.values["mirrored"] as? String == "after start")
+  }
+
   // MARK: - Lifecycle
 
   @Test func stopSilencesBothDirections() {
@@ -327,6 +379,23 @@ struct CloudSyncTests {
     store.values["mirrored"] = "cloud"
     postExternalChange(keys: ["mirrored"])
     #expect(defaults.string(forKey: "mirrored") == "local")
+  }
+
+  /// The real consumer pattern: `stop()` then `start()` on every
+  /// return to foreground must re-arm both directions.
+  @Test func stopThenStartReArmsBothDirections() {
+    let sync = sync()
+    sync.start()
+    sync.stop()
+    sync.start()
+
+    store.values["mirrored"] = "cloud"
+    postExternalChange(keys: ["mirrored"])
+    #expect(defaults.string(forKey: "mirrored") == "cloud")
+
+    defaults.set("local", forKey: "mirrored")
+    postSettingMutation(key: "mirrored")
+    #expect(store.values["mirrored"] as? String == "local")
   }
 
   @Test func mutationsForAnotherDefaultsStoreAreIgnored() {

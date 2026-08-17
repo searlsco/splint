@@ -39,18 +39,33 @@ public final class CloudSync {
   private let center: NotificationCenter
   // Reachable from `deinit`, which runs nonisolated on `@MainActor`
   // classes in Swift 6. Safe: `NotificationCenter.removeObserver` is
-  // thread-safe and `observers` is never mutated after `start()`.
+  // thread-safe, and `observers` is only mutated on the main actor by
+  // `start()`/`stop()`, which cannot race `deinit` (their caller holds
+  // a strong reference).
   private nonisolated(unsafe) var observers: [any NSObjectProtocol] = []
 
-  /// `center` must be the center that receives Foundation's
-  /// `didChangeExternallyNotification` posts and `Setting`'s mutation
-  /// posts (the default center) in production; tests inject a fresh
-  /// center and post equivalents.
-  public init(
+  /// `defaults` must be the same `UserDefaults` **instance** every
+  /// mirrored `Setting` uses as its store — automatic with the default
+  /// `.standard`, which is a singleton. For a suite
+  /// (`UserDefaults(suiteName:)`), create one instance and share it:
+  /// mutation signals are matched by instance identity, so a second
+  /// instance of the same suite is silently unrecognized.
+  public convenience init(
     keys: some Sequence<String>,
     defaults: UserDefaults = .standard,
-    store: any UbiquitousKeyValueStore = NSUbiquitousKeyValueStore.default,
-    center: NotificationCenter = .default
+    store: any UbiquitousKeyValueStore = NSUbiquitousKeyValueStore.default
+  ) {
+    self.init(keys: keys, defaults: defaults, store: store, center: .default)
+  }
+
+  /// Internal seam: production always observes the default center
+  /// (where Foundation and `Setting` post); tests inject a fresh
+  /// center and post equivalents.
+  init(
+    keys: some Sequence<String>,
+    defaults: UserDefaults,
+    store: any UbiquitousKeyValueStore,
+    center: NotificationCenter
   ) {
     self.keys = Array(keys)
     self.defaults = defaults
@@ -114,12 +129,22 @@ public final class CloudSync {
   }
 
   private func receiveExternalChange(_ changed: [String]?, reason: Int?) {
-    if reason == NSUbiquitousKeyValueStoreQuotaViolationChange {
-      // Our own writes were rejected; a listed key with a nil remote
-      // value is not evidence of a cloud deletion, so never remove
-      // local state here.
+    if reason == NSUbiquitousKeyValueStoreQuotaViolationChange
+      || reason == NSUbiquitousKeyValueStoreInitialSyncChange
+    {
+      // Neither reason is evidence of a cloud deletion, so never remove
+      // local state here. Quota violation means our own writes were
+      // rejected. Initial sync fires while iCloud's first download is
+      // still in progress — Apple documents that a write attempted
+      // during that window generates this notification — so a listed
+      // key with a nil remote value most likely means "not downloaded
+      // yet," and deleting would destroy the value the user just chose.
       pullPresentValues(changed)
     } else {
+      // Server and account changes are delivered truth: values replace,
+      // and a listed key with no remote value is a real deletion (on
+      // account change, Apple replaces the store with the new account's
+      // data, so a missing key means that account doesn't have it).
       pull(changed)
     }
   }

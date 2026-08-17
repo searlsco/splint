@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `CloudSync` no longer treats a key listed in an **initial-sync**
+  notification with a nil remote value as a cloud deletion. Apple fires
+  that notification when a write races iCloud's still-in-progress first
+  download, so deleting there could destroy the value the user just
+  chose. Initial sync now applies present values only, like quota
+  violations; server-change and account-change notifications keep their
+  deletion semantics.
+
+### Changed
+
+- `CloudSync.init` no longer exposes the `center:` parameter. It was a
+  test seam, and any value other than `.default` silently disabled
+  uploads (Setting posts its mutation signal to the default center).
+- Documented `CloudSync`'s receive-only contract in a new DocC guide:
+  the one-store-instance requirement, cloud-wide `reset()`, pre-`start()`
+  mutations staying local, and how a preference that predates mirroring
+  gets published.
+
 ## [0.9.2] - 2026-08-17
 
 ### Fixed

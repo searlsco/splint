@@ -155,9 +155,10 @@ public final class Setting<Value: SettingValue> {
   /// the store (and never uploaded by `CloudSync`) on the way to removal.
   public func reset() {
     store.removeObject(forKey: key)
+    let wasApplying = isApplyingExternalChange
     isApplyingExternalChange = true
+    defer { isApplyingExternalChange = wasApplying }
     value = defaultValue
-    isApplyingExternalChange = false
     postMutation()
   }
 
