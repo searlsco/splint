@@ -62,11 +62,8 @@ struct LensLargeNTests {
   }
 
   @Test func worstCaseOrderingsSortCorrectly_random() async {
-    // Deterministic shuffle via a fixed seed for reproducibility.
     var rng = SystemRandomNumberGenerator()
     var scores = Array(0..<n)
-    // Fisher-Yates with a seeded sequence would be nicer; for test
-    // stability we just sort-shuffle with deterministic keys.
     scores.shuffle(using: &rng)
     let items = zip(0..<n, scores).map { id, score in
       TestItem(id: id, name: "item-\(id)", score: score)

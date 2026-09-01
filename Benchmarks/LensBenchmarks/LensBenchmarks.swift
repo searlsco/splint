@@ -2,7 +2,8 @@ import Benchmark
 import Foundation
 import Splint
 
-// Large-N benchmarks for Lens, gated behind the `Benchmark` package trait.
+// Large-N benchmarks for Lens, gated behind the SPLINT_BENCHMARK
+// environment variable (see Package.swift).
 // Setup (catalog construction + async fetch) runs on @MainActor via
 // `await primeCatalog`; measurement starts in the task context; the measured
 // work runs inside `MainActor.run`. This split keeps `benchmark`

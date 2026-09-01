@@ -20,8 +20,8 @@ public struct BookClient: Sendable {
 }
 
 extension BookClient {
-  /// In-process fixtures. Production code constructs `.live` with real
-  /// networking; this example only uses the mock.
+  /// In-process fixtures, used by the test suite. Production code
+  /// constructs `.live` with real networking.
   public static let mock = BookClient(
     fetchBooks: { _ in
       try? await Task.sleep(for: .milliseconds(50))
