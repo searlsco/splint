@@ -245,7 +245,6 @@ struct CatalogTests {
     }
     c.load(TestCriteria(category: "x"))
     await waitUntil { c.phase == .completed }
-    // Matches today's items.first { $0.id == id } semantics.
     #expect(c[id: 1]?.name == "first")
   }
 

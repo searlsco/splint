@@ -169,8 +169,8 @@ struct LensTests {
   }
 
   @Test func subscriptKeepsFirstOccurrenceForDuplicateIDs() async {
-    // Two items share id 1; lens should surface the first one — same
-    // semantics as Catalog's items.first { $0.id == id }.
+    // Two items share id 1; the lens surfaces the first one, matching
+    // Catalog's own duplicate-id semantics.
     let c = await loadedCatalog([
       TestItem(id: 1, name: "first", score: 1),
       TestItem(id: 1, name: "second", score: 2),
