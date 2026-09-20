@@ -74,13 +74,17 @@ it doesn't gate where the package builds.
 
 ## Testing
 
+Use the smallest meaningful check and reuse valid evidence for unchanged inputs.
+Broaden only for changed risk, an unresolved failure, or a required release/CI gate.
+Documentation-only edits need a diff and consistency check, not builds or tests.
+
 - **swift-testing only.** No XCTest in new test files. `@Test` / `#expect`
   everywhere.
 - Follow the project's testing rules in `.claude/rules/testing.md` (write
   tests first, one behavior per test, test behavior not implementation).
-- Development follows BDD dual-loop TDD: a failing integration test drives
-  inner unit-level red-green-refactor cycles until the integration test
-  passes.
+- Add a regression test at the smallest layer that demonstrates the behavior.
+  Add an integration test only when the requirement crosses component boundaries;
+  do not require two testing loops for every change.
 - **100% line coverage on `Sources/Splint/`** is enforced by `script/test`
   and is a forcing function, not a metric — delete unreachable lines,
   restructure for testability, or tag with `// coverage:ignore — <rationale>`
