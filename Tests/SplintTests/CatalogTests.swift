@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@_spi(Internal) @testable import Splint
+@testable import Splint
 
 struct TestItem: Resource {
   let id: Int

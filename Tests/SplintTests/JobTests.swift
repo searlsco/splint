@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@_spi(Internal) @testable import Splint
+@testable import Splint
 
 private struct Boom: Error {
   let msg: String

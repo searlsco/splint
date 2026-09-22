@@ -2,7 +2,7 @@ import Foundation
 
 /// The slice of `NSUbiquitousKeyValueStore` that `CloudSync` touches,
 /// as a seam so tests drive a fake instead of iCloud.
-public protocol UbiquitousKeyValueStore: AnyObject {
+protocol UbiquitousKeyValueStore: AnyObject {
   func object(forKey aKey: String) -> Any?
   func set(_ anObject: Any?, forKey aKey: String)
   func removeObject(forKey aKey: String)
@@ -52,15 +52,14 @@ public final class CloudSync {
   /// instance of the same suite is silently unrecognized.
   public convenience init(
     keys: some Sequence<String>,
-    defaults: UserDefaults = .standard,
-    store: any UbiquitousKeyValueStore = NSUbiquitousKeyValueStore.default
+    defaults: UserDefaults = .standard
   ) {
-    self.init(keys: keys, defaults: defaults, store: store, center: .default)
+    self.init(keys: keys, defaults: defaults, store: NSUbiquitousKeyValueStore.default, center: .default)
   }
 
-  /// Internal seam: production always observes the default center
-  /// (where Foundation and `Setting` post); tests inject a fresh
-  /// center and post equivalents.
+  /// Internal seam: production always uses the default iCloud store and
+  /// observes the default center (where Foundation and `Setting` post);
+  /// tests inject a fake store and a fresh center and post equivalents.
   init(
     keys: some Sequence<String>,
     defaults: UserDefaults,

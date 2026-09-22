@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# prove_it: fast tests—runs every time Claude finishes a response
+# Fast tests for the inner TDD loop (no coverage gate).
 set -e
-trap 'rc=$?; command -v prove_it >/dev/null 2>&1 && prove_it record --name fast-tests --result $rc' EXIT
 cd "$(dirname "$0")/.."
 # Preflight: see script/test — bail fast instead of hanging on a held
 # SwiftPM workspace lock.

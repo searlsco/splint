@@ -98,20 +98,20 @@ struct GroupedLensLargeNTests {
     #expect(counter.value == 500, "two-arg categorize must fire exactly once per filtered item")
   }
 
-  @Test func threeArgCategorizerInvokedOncePerFilteredItem() async {
+  @Test func categorizerInvokedOncePerFilteredItem() async {
     let c = await loadedCatalog(makeItems(n))
     let counter = LockCounter()
 
     let l = GroupedLens<TestItem, Int>(
       source: c,
       filter: { $0.score >= 500 },
-      categorize: { item, _, _ in
+      categorize: { item in
         counter.increment()
         return item.score % 10
       }
     )
     _ = l
-    #expect(counter.value == 500, "three-arg categorize must fire exactly once per filtered item")
+    #expect(counter.value == 500, "categorize must fire exactly once per filtered item")
   }
 
   @Test func groupingDoesNotDegradeSortStability() async {

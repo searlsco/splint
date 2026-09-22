@@ -80,8 +80,15 @@ struct CloudSyncTests {
       object: store, userInfo: userInfo)
   }
 
-  @Test func publicInitializerObservesTheDefaultCenter() {
-    let sync = CloudSync(keys: ["mirrored"], defaults: defaults, store: store)
+  @Test func publicInitializerBuildsWithoutTouchingICloud() {
+    // The public init binds the real iCloud store; constructing it must
+    // not read or write anything until `start()`.
+    _ = CloudSync(keys: ["mirrored"], defaults: defaults)
+    #expect(defaults.object(forKey: "mirrored") == nil)
+  }
+
+  @Test func defaultCenterDeliversExternalChanges() {
+    let sync = sync(center: .default)
     sync.start()
     store.values["mirrored"] = "cloud"
     NotificationCenter.default.post(

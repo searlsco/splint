@@ -112,6 +112,16 @@ private var thingy: Thingy { thingyEnv! }
 //    primitive that has one.
 ```
 
+## Session coordination
+
+Login, logout, and reauthentication require atomic coordination across
+multiple fields (token write + provider switch + player teardown). This
+is not a Splint type — it's a plain `@Observable` class with a
+`login()` method that performs the coordination. It should be `@State`
+on the authenticated root view and destroyed on logout. Splint types
+(``Credential``, ``Setting``, ``Catalog``) are the *fields* it
+coordinates, not a replacement for the coordinator itself.
+
 ## Topics
 
 ### Related

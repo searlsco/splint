@@ -19,13 +19,11 @@ public final class Job<Value: Sendable> {
 
   @ObservationIgnored private var runningTask: Task<Void, Never>?
 
-  /// Underlying task for the most recent ``run(priority:task:)``.
-  /// Exposed under `@_spi(Internal)` so tests can synchronize on the
-  /// specific task instance (e.g. await its completion deterministically
+  /// Underlying task for the most recent ``run(priority:task:)``,
+  /// internal so tests can synchronize on the specific task instance (e.g. await its completion deterministically
   /// when verifying supersede behavior). Production callers wanting to
   /// await run completion should use ``awaitSettled()`` instead.
-  @_spi(Internal)
-  public var currentTask: Task<Void, Never>? { runningTask }
+  var currentTask: Task<Void, Never>? { runningTask }
 
   /// Construction is `nonisolated`; property reads and writes remain
   /// `@MainActor`. This lets `Job` be used as the `defaultValue` of a

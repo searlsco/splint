@@ -81,8 +81,7 @@ public final class Setting<Value: SettingValue> {
   }
 
   /// Internal designated init used by the `RawRepresentable` extension.
-  @_spi(Internal)
-  public init(
+  init(
     _ key: String,
     default defaultValue: Value,
     store: UserDefaults,
@@ -163,7 +162,7 @@ public final class Setting<Value: SettingValue> {
   }
 
   /// Apply an externally-observed change to `value`. The KVO callback
-  /// funnels through here; exposed via `@_spi(Internal)` so the
+  /// funnels through here; internal (not private) so the
   /// equality guard can be unit-tested without depending on
   /// `userdefaultsd` timing.
   ///
@@ -174,8 +173,7 @@ public final class Setting<Value: SettingValue> {
   ///   `RawRepresentable`, an unknown raw case) → ignore. Refusing to
   ///   touch `value` here is what prevents an external garbage write
   ///   from silently clobbering a valid user preference.
-  @_spi(Internal)
-  public func _applyExternalChange() {
+  func _applyExternalChange() {
     let new: Value
     if store.object(forKey: key) == nil {
       // Key removed (or never set) — fall back to the default so
