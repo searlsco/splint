@@ -137,35 +137,6 @@ source — filter runs first. Passing a one-argument closure (or `nil`)
 still works via the simpler overload; Swift picks the right one based
 on the closure's arity.
 
-### Bucketing against the raw source
-
-Sometimes a category should be anchored to the *source* collection,
-not the filtered-and-sorted visible one — for example, "above the
-library-wide mean" while the lens is filtered to a single genre. A
-three-argument categorizer receives the raw source array as well:
-
-```swift
-let lens = GroupedLens<Book, String>(
-  source: catalog,
-  filter: { $0.genre == .mystery },
-  categorize: { book, _, source in
-    let libraryMean = Double(source.map(\.rating).reduce(0, +))
-      / Double(source.count)
-    return Double(book.rating) >= libraryMean ? "Above avg" : "Below avg"
-  })
-```
-
-The parameters are **positional**:
-
-1. `item` — the current item.
-2. `visible` — the filtered + sorted array (same as `items`).
-3. `source` — the raw catalog items, before filter or sort.
-
-Pick the overload that matches your aggregate's scope: visible for
-"top half of what's on screen", source for "ranked within the whole
-library". The one- and two-argument forms both remain available; all
-three variants exist on ``GroupedLens/updateCategories(_:)-9y3ib`` too.
-
 ## Closures capture once
 
 ``GroupedLens`` captures `filter`, `sort`, and `categorize` at init.

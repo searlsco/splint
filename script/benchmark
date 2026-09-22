@@ -15,7 +15,6 @@
 #   runs the suite, then `thresholds check` exits non-zero per
 #   package-benchmark conventions (2=regression, 4=improvements).
 set -euo pipefail
-trap 'rc=$?; command -v prove_it >/dev/null 2>&1 && prove_it record --name benchmark --result $rc' EXIT
 cd "$(dirname "$0")/.."
 
 export SPLINT_BENCHMARK=1

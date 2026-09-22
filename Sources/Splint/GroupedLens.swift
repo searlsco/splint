@@ -41,7 +41,7 @@ public final class GroupedLens<
   @ObservationIgnored private let sourceItems: @MainActor () -> [Item]
   @ObservationIgnored private var filter: @Sendable (Item) -> Bool
   @ObservationIgnored private var order: (@Sendable (Item, Item) -> Bool)?
-  @ObservationIgnored private var categorize: (@Sendable (Item, [Item], [Item]) -> Category)?
+  @ObservationIgnored private var categorize: (@Sendable (Item, [Item]) -> Category)?
   @ObservationIgnored private var itemsByID: [Item.ID: Item] = [:]
 
   public init<Criteria: Equatable & Sendable>(
@@ -69,8 +69,8 @@ public final class GroupedLens<
     self.sourceItems = { source.items }
     self.filter = filter
     self.order = sort
-    self.categorize = categorize.map { simple -> @Sendable (Item, [Item], [Item]) -> Category in
-      { item, _, _ in simple(item) }
+    self.categorize = categorize.map { simple -> @Sendable (Item, [Item]) -> Category in
+      { item, _ in simple(item) }
     }
     refresh()
     observe()
@@ -80,33 +80,12 @@ public final class GroupedLens<
   /// *and* the full filtered+sorted collection, enabling bucketing that
   /// depends on aggregates (percentiles, above/below median, rank).
   /// `visible` is the same array exposed as ``items``; it has already
-  /// had `filter` and `sort` applied. Use the three-argument overload
-  /// when aggregates should be computed from the raw source instead.
+  /// had `filter` and `sort` applied.
   public init<Criteria: Equatable & Sendable>(
     source: Catalog<Item, Criteria>,
     filter: @escaping @Sendable (Item) -> Bool = { _ in true },
     sort: (@Sendable (Item, Item) -> Bool)? = nil,
     categorize: @escaping @Sendable (_ item: Item, _ visible: [Item]) -> Category
-  ) {
-    self.sourceItems = { source.items }
-    self.filter = filter
-    self.order = sort
-    self.categorize = { item, visible, _ in categorize(item, visible) }
-    refresh()
-    observe()
-  }
-
-  /// Source-aware variant. The categorizer receives the current item,
-  /// the filtered+sorted `visible` collection (same as ``items``), and
-  /// the raw `source` collection from the catalog (before filtering or
-  /// sorting). Use when bucketing must be anchored to the source — e.g.
-  /// "above the library-wide mean" while the lens is filtered to a
-  /// subset.
-  public init<Criteria: Equatable & Sendable>(
-    source: Catalog<Item, Criteria>,
-    filter: @escaping @Sendable (Item) -> Bool = { _ in true },
-    sort: (@Sendable (Item, Item) -> Bool)? = nil,
-    categorize: @escaping @Sendable (_ item: Item, _ visible: [Item], _ source: [Item]) -> Category
   ) {
     self.sourceItems = { source.items }
     self.filter = filter
@@ -132,8 +111,8 @@ public final class GroupedLens<
   /// Replace the categorizer and recompute. Pass `nil` to clear
   /// ``groups`` back to empty without losing ``items``.
   public func updateCategories(_ categorize: (@Sendable (Item) -> Category)?) {
-    self.categorize = categorize.map { simple -> @Sendable (Item, [Item], [Item]) -> Category in
-      { item, _, _ in simple(item) }
+    self.categorize = categorize.map { simple -> @Sendable (Item, [Item]) -> Category in
+      { item, _ in simple(item) }
     }
     refresh()
   }
@@ -143,16 +122,6 @@ public final class GroupedLens<
   /// collection (same as ``items``).
   public func updateCategories(
     _ categorize: @escaping @Sendable (_ item: Item, _ visible: [Item]) -> Category
-  ) {
-    self.categorize = { item, visible, _ in categorize(item, visible) }
-    refresh()
-  }
-
-  /// Source-aware variant of ``updateCategories(_:)``. The closure
-  /// receives the current item, the filtered+sorted `visible`
-  /// collection, and the raw `source` collection from the catalog.
-  public func updateCategories(
-    _ categorize: @escaping @Sendable (_ item: Item, _ visible: [Item], _ source: [Item]) -> Category
   ) {
     self.categorize = categorize
     refresh()
@@ -171,8 +140,7 @@ public final class GroupedLens<
   /// recomputed. For state you *can* observe, `.onChange(of:)` plus
   /// the matching `update…` method remains the right pattern.
   public func refresh() {
-    let source = sourceItems()
-    var result = source.filter(self.filter)
+    var result = sourceItems().filter(self.filter)
     if let order { result.sort(by: order) }
     items = result
 
@@ -182,7 +150,7 @@ public final class GroupedLens<
     }
     var buckets: [Category: [Item]] = [:]
     for item in result {
-      buckets[categorize(item, result, source), default: []].append(item)
+      buckets[categorize(item, result), default: []].append(item)
     }
     groups = buckets.keys.sorted().map { key in
       (category: key, items: buckets[key]!)

@@ -75,7 +75,7 @@ public struct BookDetailView: View {
     // Under `@Sendable` this would fail to compile. We only read stable
     // `let` properties (`client`, `book`) — reaching into view state
     // (`@Query` results, mutating `@State`, etc.) from inside the Task
-    // would still be wrong. See README "Job closures and isolation".
+    // would still be wrong. See the DocC JobGuide "Closures and isolation".
     metadataJob.run { try await client.fetchMetadata(book.id) }
   }
 }

@@ -31,5 +31,5 @@ struct NonisolatedConstructionTests {
   //
   //   Selection<ID>.init(_ initial: ID?)
   //   Setting<Value>.init(_:default:store:)
-  //   Setting<Value>.init(_:default:store:read:write:)  // @_spi(Internal)
+  //   Setting<Value>.init(_:default:store:read:write:)  // internal
 }

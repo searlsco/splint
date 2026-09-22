@@ -45,12 +45,38 @@ The most important API distinction in Splint:
 
 - `catalog.load(newCriteria)` — criteria changed; old items are *wrong*
   (channel A's programs when you asked for channel B). Clears items
-  immediately so the view shows loading, not wrong data.
+  immediately so the view shows loading, not wrong data. The one
+  exception is the very first `load()`: the prior criteria was `nil`,
+  so there are no "wrong" items to wipe — any seeded items from
+  `initialItems:` stay visible until the fetch lands.
 - `catalog.refresh()` — same criteria; items stay visible during fetch.
   This is pull-to-refresh, periodic polling, "show stale and update in
   place." No-op if `load()` has never been called.
 - `catalog.retry()` — alias for `refresh()`; reads better after
   failure.
+
+## Seeding from a cache
+
+Cold launch shouldn't have to flash an empty view for the 500ms–2s the
+first fetch takes. If you have a disk-cached snapshot of the last
+successful fetch, pass it via `initialItems:`:
+
+```swift
+let cached: [Book] = cache.load(key: "books", as: [Book].self) ?? []
+let catalog = Catalog<Book, BookCriteria>(initialItems: cached) { criteria in
+    try await api.fetchBooks(in: criteria.libraryID)
+}
+```
+
+Semantics:
+
+- `catalog.items` is non-empty from moment zero — any ``Lens`` or
+  ``GroupedLens`` built on top sees the seed immediately.
+- `catalog.phase` stays `.idle` until a real `load()` completes.
+  Seeding is not a completed fetch.
+- The first `load()` preserves the seed until the fetch lands, so the
+  view doesn't flash empty between "we showed the cache" and "the
+  network answered."
 
 ## Catalog lifecycle
 

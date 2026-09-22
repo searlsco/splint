@@ -21,6 +21,7 @@ into `@State`, `@Environment`, `@Query`, and `@Observable`.
 | ``Job`` | Async operation lifecycle | `@Observable` | None | Phase mutates as work progresses |
 | ``Selection`` | Currently selected item identifier | `@Observable` | None | Mutates on user tap |
 | ``Setting`` | Single typed user preference | `@Observable` | UserDefaults | Mutates, persists automatically |
+| ``CloudSync`` | Mirrors chosen ``Setting`` keys to iCloud key-value storage | None | iCloud KVS | Uploads on Setting mutation |
 | ``Credential`` | Keychain-backed secret | None — read on demand | Keychain | Mutates via explicit save/delete |
 
 ## Decision guide
@@ -32,6 +33,7 @@ into `@State`, `@Environment`, `@Query`, and `@Observable`.
 - Async fetch lifecycle → ``Job``
 - Selected item identifier → ``Selection``
 - User preference → ``Setting``
+- User preference synced across devices → ``Setting`` + ``CloudSync``
 - Secret → ``Credential``
 - SwiftData entity → `@Model` + `@Query` (*not* a Splint type)
 - Presentation state (sheet, alert, popover) → `@State` on the presenter

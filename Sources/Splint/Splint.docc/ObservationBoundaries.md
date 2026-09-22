@@ -50,6 +50,14 @@ should hold the *same* `@Observable` instance. Do not create
 `@Model Item`) and pass it to both views. Observation boundaries form
 at view boundaries automatically.
 
+### What Splint won't fix
+
+Splint addresses data structure. It does not address SwiftUI rendering
+performance (symbol effects, navigation transitions, column layout
+behavior), view lifecycle timing, or platform-specific layout bugs. If
+your performance problem is in the render layer, Instruments' SwiftUI
+template is the right tool — not a data modeling library.
+
 > Note: These are architectural guidelines based on how the
 > Observation framework is designed to work, not guaranteed rendering
 > outcomes. Apple does not document exact re-evaluation behavior. Use

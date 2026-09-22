@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@_spi(Internal) @testable import Splint
+@testable import Splint
 
 /// Drain one main-queue turn. The `Setting` KVO callback hops to main
 /// via `DispatchQueue.main.async`; this sentinel lands after it (FIFO),
@@ -183,7 +183,7 @@ struct SettingTests {
   // (Issue footgun #5, App Group cross-process sync, deliberately not
   // automated. SPM tests can't acquire an App Group entitlement
   // without restructuring to xcodebuild + a host app target. Cross-
-  // process sync is documented in README as the OS guarantee that
+  // process sync is documented in the DocC SettingGuide as the OS guarantee that
   // standard KVO on a shared suite leverages.)
 
   /// Issue footgun #6. Dropping the last strong reference to a

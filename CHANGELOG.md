@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- `GroupedLens`'s source-aware categorizer: `init(source:filter:sort:categorize:)`
+  with an `(item, visible, source)` closure and the matching
+  `updateCategories(_:)` overload. No consumer used them; the one- and
+  two-argument (`item, visible`) forms remain.
+
+### Changed
+
+- `UbiquitousKeyValueStore` and the `store:` parameter of
+  `CloudSync(keys:defaults:store:)` are no longer public. They were a
+  test seam; `CloudSync(keys:defaults:)` always uses
+  `NSUbiquitousKeyValueStore.default`.
+- `Catalog.currentTask`, `Job.currentTask`, `Setting`'s
+  `init(_:default:store:read:write:)`, and `Setting._applyExternalChange()`
+  are now `internal` instead of `@_spi(Internal) public`.
+- `README.md` is cut to the thin-README contract; conceptual guidance
+  lives in the DocC catalog on Swift Package Index. `CloudSync` and
+  `GroupedLens` are now in the type inventory and in
+  `claude/rules/splint.md`.
+
 ## [0.10.0] - 2026-08-17
 
 ### Fixed

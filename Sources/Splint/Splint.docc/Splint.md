@@ -7,7 +7,9 @@ Named data types for SwiftUI apps.
 Splint gives every data shape in your app a name so that the skeleton
 heals correctly. It is *corrective, not prescriptive*: it does not
 replace SwiftUI's architecture — `@Query`, `@Environment`, `@State`,
-`@Observable` — it names the things you put in those slots.
+`@Observable` — it names the things you put in those slots. It is not a
+state management framework: no reducers, no action enums, no effect
+types, no stores.
 
 Every SwiftUI app assembles views from the same handful of data shapes.
 Splint names them:

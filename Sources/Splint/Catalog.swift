@@ -43,13 +43,11 @@ public final class Catalog<Item: Resource, Criteria: Equatable & Sendable> {
   @ObservationIgnored private var fetchGeneration: UInt64 = 0
   @ObservationIgnored private var itemsByID: [Item.ID: Item] = [:]
 
-  /// Underlying task for the most recent fetch. Exposed under
-  /// `@_spi(Internal)` so tests can assert on Task identity (e.g. that
-  /// a superseded task is no longer the current one). Production
-  /// callers wanting to await load completion should use
-  /// ``awaitSettled()`` instead.
-  @_spi(Internal)
-  public var currentTask: Task<Void, Never>? { task }
+  /// Underlying task for the most recent fetch, internal so tests can
+  /// assert on Task identity (e.g. that a superseded task is no longer
+  /// the current one). Production callers wanting to await load
+  /// completion should use ``awaitSettled()`` instead.
+  var currentTask: Task<Void, Never>? { task }
 
   /// Suspend until the catalog reaches a settled ``Phase`` —
   /// `.completed` or `.failed`. Returns immediately if no load has

@@ -15,12 +15,21 @@ inventing a new type.
   it does not fetch. Multiple lenses can share one catalog. Filter/sort
   closures capture once at construction — drive mutable filter inputs
   through `updateFilter`/`updateSort` from `.onChange(of:)`.
+- **Grouped or sectioned list** over a Catalog → `GroupedLens<Item, Category>`.
+  Pass a `categorize` closure (one-argument, or two-argument
+  `(item, visible)` for aggregate-based buckets) and render `groups`
+  with `ForEach { Section }`. Never recompute `Dictionary(grouping:)`
+  in a view body. Same capture-once rule; drive changes through
+  `updateCategories`.
 - **Async operation lifecycle** (a fetch, a save, a one-off call) →
   `Job<Value>`. Not `isLoading` + `error` + `data` as separate booleans.
 - **Selected item identifier** → `Selection<ID>`. One per selectable
   concern (active tab, active row, active channel). One value each.
 - **User preference** (scalar only) → `Setting<Value>`. One key per
   instance. Many small settings, never a `SettingsStore` god-object.
+- **Preference synced across devices** → a `Setting` plus `CloudSync`.
+  Hold one `CloudSync(keys:)` instance for the app lifetime, call
+  `start()` at launch, and list only the keys that should sync.
 - **Secret** (token, password) → `Credential`. A struct, read on demand.
 - **SwiftData entity** → `@Model` + `@Query`. Not a Splint type. Pass
   instances directly to child views. `@Model` types are not Sendable and
@@ -30,6 +39,21 @@ inventing a new type.
   grows past 3 fields, you have combined concerns — name each and split.
   There is no general-purpose `ViewState`.
 - **Anything else local to one view** → `@State` on the owning view.
+
+## What agents get wrong
+
+| Agent mistake | Splint type that prevents it |
+|---------------|------------------------------|
+| God-object ViewModel with 15+ properties | Named types split data by kind |
+| `isLoading` / `error` / `data` as separate booleans | `Job<Value>` with `phase` + `value` |
+| Duplicate arrays (source + filtered copy, manually synced) | `Lens` derives from `Catalog` |
+| Showing stale wrong data after parameter change | `Catalog.load()` clears items when criteria change |
+| `selectedItem` on a 15-field observable | `Selection<ID>` — one value, one observation point |
+| Credential stored in an observable property | `Credential` is a struct, read on demand |
+| UserDefaults scattered across the app | `Setting<Value>` — one key, one observation point |
+| Wrapping SwiftData models in ViewModels | Use `@Model` directly |
+| Reading child properties in ForEach closure | Extract to a child view |
+| Catch-all "view state" objects that grow over time | No ViewState type exists — forces decomposition |
 
 ## `load(_:)` vs `refresh()`
 

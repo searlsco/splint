@@ -11,17 +11,6 @@ This file captures the packaging, distribution, and infrastructure decisions
 that shape the project. The library's API/design spec lives elsewhere and is
 not re-litigated here.
 
-## Current state of this repo
-
-**This document is a forward-looking spec.** As of this commit, the repo
-contains only scaffolding — `.claude/` (Claude + prove_it config and rules),
-`script/test` and `script/test_fast` stubs, and this file. Everything else
-described below — `Package.swift`, `Sources/`, `Tests/`, `.gitignore`,
-`.swift-format`, `LICENSE`, `README.md`, `CHANGELOG.md`, `.spi.yml`,
-`.github/workflows/`, `.claude/skills/release.md`, the remaining `script/*`
-commands — is planned. Treat this file as the contract those artifacts must
-satisfy when they're created, not a map of what already exists.
-
 ## Toolchain
 
 - **Local floor: Xcode 26.4+ / Swift 6.x.** Brand-new project, audience is
@@ -30,9 +19,9 @@ satisfy when they're created, not a map of what already exists.
   modern features without apology.
 - **CI floor: whatever's on `macos-latest`.** GitHub's hosted runner image
   lags Apple releases by a few weeks. Pin CI to the newest Xcode the runner
-  ships (currently 26.3); deployment targets in `Package.swift` must stay
-  buildable against that runner's SDK ceiling (currently 26.2). Bump both
-  in lockstep when the runner image catches up — the local floor can move
+  ships (the pin lives in `.github/workflows/ci.yml`); deployment targets in
+  `Package.swift` must stay buildable against that runner's SDK ceiling. Bump
+  both in lockstep when the runner image catches up — the local floor can move
   faster, but the package itself stays buildable on CI.
 
 ## Platforms
@@ -61,8 +50,8 @@ it doesn't gate where the package builds.
   major bump with no deprecation carry-over. Consumers pinning
   `.upToNextMajor(from:)` get a clean signal; consumers who want slower
   migration can stay on the old major.
-- **Release flow:** `script/release <major|minor|patch>` is invoked by a
-  Claude skill at `.claude/skills/release.md`. The script bumps the version,
+- **Release flow:** `script/release <major|minor|patch>` is driven by the
+  global `release` skill. The script bumps the version,
   updates `CHANGELOG.md` (rolls `[Unreleased]` into a dated version section),
   runs `script/test`, creates a bare semver tag, and pushes.
 
@@ -91,8 +80,16 @@ Documentation-only edits need a diff and consistency check, not builds or tests.
   (or a `coverage:ignore-start` / `-end` block). Rationale must be ≥10
   chars. Override threshold via `SPLINT_COVERAGE_THRESHOLD=<n>` only for
   local experimentation. Coverage parser lives at `script/lib/coverage.py`
-  with inline `--self-test` fixtures; see the README `## Coverage` section
-  for the contract.
+  with inline `--self-test` fixtures. The contract: if a line can't be
+  covered by a meaningful behavioural test, delete it, restructure it to
+  be testable, or tag it with a marker whose rationale names the specific
+  reason:
+  ```swift
+  foo()  // coverage:ignore — <why this line can't be exercised>
+  ```
+  Blocks use `// coverage:ignore-start — <rationale>` and
+  `// coverage:ignore-end`. Padding coverage with tests that exercise a
+  line without verifying behaviour defeats the purpose.
 
 ## Formatting & linting
 
@@ -151,8 +148,9 @@ Documentation-only edits need a diff and consistency check, not builds or tests.
 ## CI
 
 - **GitHub Actions.** Workflows live in `.github/workflows/`.
-- **Matrix:** `macOS-latest` (Xcode 26.3 — newest available on the runner
-  image; see Toolchain), one Swift version. Linux is not built (see
+- **Matrix:** `macOS-latest` (the newest Xcode available on the runner
+  image, pinned in `.github/workflows/ci.yml`; see Toolchain), one Swift
+  version. Linux is not built (see
   Platforms above).
 - Workflows invoke `script/test` rather than duplicating commands — the
   script is the single source of truth for what "pass" means locally and in
@@ -188,27 +186,20 @@ templates until the project has traffic that warrants them.
 ## `script/` suite
 
 One-script-to-rule-them-all convention. Every dev-lifecycle action is a thin
-shell script under `script/` so humans, CI, `prove_it`, and Claude skills
-all invoke the same thing.
+shell script under `script/` so humans, CI, and Claude skills all invoke
+the same thing.
 
 | Script | Purpose |
 |---|---|
-| `script/test` | Full test run + coverage gate. Invoked by CI and by `prove_it`. Enforces 100% line coverage on `Sources/Splint/` via `script/lib/coverage.py`. |
+| `script/test` | Full test run + coverage gate. Invoked by CI. Enforces 100% line coverage on `Sources/Splint/` via `script/lib/coverage.py`. |
 | `script/test_fast` | Quick-feedback subset used during the inner TDD loop. Skips `CredentialTests` (real keychain). No coverage gate — that lives on `script/test`. |
 | `script/benchmark` | Runs every suite under `Benchmarks/` and gates on committed `Thresholds/` via [ordo-one/package-benchmark](https://github.com/ordo-one/package-benchmark). Env-var-gates the dev dep (`SPLINT_BENCHMARK=1`) so consumers don't resolve it. Not part of `script/test`. |
 | `script/format` | `swift format --in-place --recursive Sources Tests` — mutates. |
 | `script/lint` | `swift format lint --strict --recursive Sources Tests` — non-mutating; exits non-zero on violations. |
-| `script/release <major\|minor\|patch>` | Bumps version, updates CHANGELOG, tags (bare semver), pushes. Invoked by the release Claude skill. |
+| `script/release <major\|minor\|patch>` | Bumps version, updates CHANGELOG, tags (bare semver), pushes. Invoked by the global `release` skill. |
 | `script/docs` | Local DocC preview (`swift package generate-documentation --target Splint`). |
 | `script/setup` | Fresh-clone bootstrap. Verifies toolchain; installs any repo-local tooling. |
 | `script/clean` | Nukes `.build/`, `Package.resolved`, local docs output. |
-
-## Claude skills
-
-Project-scoped skills live in `.claude/skills/`:
-
-- `release.md` — takes `major|minor|patch`, runs tests, edits CHANGELOG,
-  invokes `script/release`, and handles the post-release verification.
 
 ## Deferred decisions (revisit before 1.0)
 
