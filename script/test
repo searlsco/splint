@@ -52,7 +52,7 @@ xcrun llvm-cov export -format=lcov -instr-profile="$PROFDATA" "$BINARY" \
 
 # Example app: compile BookshelfApp (via .executableTarget) and run the
 # swift-testing suite. No coverage gate — the 100% threshold scopes to
-# Sources/Splint/ only (see CLAUDE.md). The .xcodeproj is the runnable
+# Sources/Splint/ only (see AGENTS.md). The .xcodeproj is the runnable
 # entry point for humans.
 #
 # Skipped in CI: Xcode 26.3's SDK emits SwiftUI internal symbols (e.g.

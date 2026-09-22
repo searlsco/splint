@@ -217,3 +217,7 @@ Project-scoped skills live in `.claude/skills/`:
   adapters) into their own targets. Decide based on real usage patterns.
 - **Concurrency / Sendable posture** — Justin has a documented spec for this;
   apply it when implementing the data-modeling primitives, not now.
+
+## Multi-machine sync
+
+This repository is edited from more than one Mac. Before starting work, fetch and integrate `origin/main` (fast-forward when possible). After finishing, commit everything uncommitted, including changes that are not yours unless another agent is actively working in this checkout, then fetch, integrate `origin/main`, and push. The full rule is in the global agent instructions (`~/icloud-drive/dotfiles/AGENTS.md`).
