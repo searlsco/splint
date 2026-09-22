@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-22
+
 ### Removed
 
 - `GroupedLens`'s source-aware categorizer: `init(source:filter:sort:categorize:)`
