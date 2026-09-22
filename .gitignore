@@ -12,3 +12,6 @@ Package.resolved
 Example/Bookshelf.xcodeproj/xcuserdata/
 Example/Bookshelf.xcodeproj/project.xcworkspace/xcuserdata/
 Example/Bookshelf.xcodeproj/**/*.xcuserstate
+
+# prove_it runtime state (sessions, local config)
+.claude/prove_it/
