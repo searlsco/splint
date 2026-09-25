@@ -200,9 +200,7 @@ public final class Setting<Value: SettingValue> {
   }
 
   private func postMutation() {
-    NotificationCenter.default.post(
-      name: SettingMutation.didMutate, object: store,
-      userInfo: [SettingMutation.keyKey: key])
+    CloudSync.announceMutation(of: key, in: store)
   }
 }
 

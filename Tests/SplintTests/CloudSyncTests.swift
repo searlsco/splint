@@ -278,6 +278,46 @@ struct CloudSyncTests {
     #expect(store.synchronizeCount == 1)  // start()'s pull request only
   }
 
+  @Test func anAnnouncedDirectWriteUploadsThatKey() {
+    let sync = sync(center: .default)
+    sync.start()
+
+    defaults.set("written by a library", forKey: "mirrored")
+    CloudSync.announceMutation(of: "mirrored", in: defaults)
+
+    #expect(store.values["mirrored"] as? String == "written by a library")
+    #expect(store.setCount == 1)
+  }
+
+  @Test func anAnnouncedRemovalRemovesTheUbiquitousKey() {
+    defaults.set("chosen", forKey: "mirrored")
+    store.values["mirrored"] = "chosen"
+    let sync = sync(center: .default)
+    sync.start()
+
+    defaults.removeObject(forKey: "mirrored")
+    CloudSync.announceMutation(of: "mirrored", in: defaults)
+
+    #expect(store.values["mirrored"] == nil)
+    #expect(store.removeCount == 1)
+  }
+
+  @Test func anAnnouncementFromOffTheMainActorUploads() async {
+    let sync = sync(center: .default)
+    sync.start()
+    // CloudSync matches the mutation by defaults instance, so the
+    // background write must use this very instance.
+    nonisolated(unsafe) let defaults = defaults
+
+    await Task.detached {
+      defaults.set("from the background", forKey: "mirrored")
+      CloudSync.announceMutation(of: "mirrored", in: defaults)
+    }.value
+
+    await waitUntil { store.values["mirrored"] as? String == "from the background" }
+    #expect(store.setCount == 1)
+  }
+
   @Test func resetRemovesTheUbiquitousKeyWithoutUploadingTheDefault() {
     defaults.set("chosen", forKey: "mirrored")
     store.values["mirrored"] = "chosen"
