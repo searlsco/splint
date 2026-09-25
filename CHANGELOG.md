@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-25
+
 ### Added
 
 - `CloudSync.announceMutation(of:in:)` uploads a key written to
