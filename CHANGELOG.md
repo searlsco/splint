@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `CloudSync.announceMutation(of:in:)` uploads a key written to
+  `UserDefaults` directly, as assigning a mirrored `Setting` would, from
+  any thread.
+
 ## [0.11.0] - 2026-09-22
 
 ### Removed

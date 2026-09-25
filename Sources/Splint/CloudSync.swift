@@ -24,7 +24,8 @@ extension NSUbiquitousKeyValueStore: UbiquitousKeyValueStore {}
 ///
 /// The invariant is upload-on-mutation, receive-only otherwise: nothing
 /// writes to iCloud unless the app explicitly assigns a mirrored
-/// ``Setting``'s `value` or calls its `reset()`. Startup pulls whatever
+/// ``Setting``'s `value`, calls its `reset()`, or announces a direct write
+/// with ``announceMutation(of:in:)``. Startup pulls whatever
 /// iCloud has already delivered and then waits; values (and deletions)
 /// arriving later — iCloud's initial download can take arbitrarily long —
 /// apply whenever their notification lands. A local-only value simply
@@ -100,6 +101,19 @@ public final class CloudSync {
       })
     store.synchronize()
     pullPresentValues(nil)
+  }
+
+  /// Uploads `key` through every started `CloudSync` that mirrors it, as
+  /// assigning a mirrored ``Setting`` would: for code that writes
+  /// `UserDefaults` itself, such as a library that can't hold a `Setting`
+  /// or writes off the main actor. Call it after the write; the current
+  /// local value (or its absence) is what uploads. Safe from any thread.
+  public nonisolated static func announceMutation(
+    of key: String, in defaults: UserDefaults = .standard
+  ) {
+    NotificationCenter.default.post(
+      name: SettingMutation.didMutate, object: defaults,
+      userInfo: [SettingMutation.keyKey: key])
   }
 
   /// Uninstalls both mirror directions; local and iCloud values stay
