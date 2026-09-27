@@ -63,10 +63,6 @@ it doesn't gate where the package builds.
 
 ## Testing
 
-Use the smallest meaningful check and reuse valid evidence for unchanged inputs.
-Broaden only for changed risk, an unresolved failure, or a required release/CI gate.
-Documentation-only edits need a diff and consistency check, not builds or tests.
-
 - **swift-testing only.** No XCTest in new test files. `@Test` / `#expect`
   everywhere.
 - Follow the project's testing rules in `.claude/rules/testing.md` (write
@@ -127,7 +123,7 @@ Documentation-only edits need a diff and consistency check, not builds or tests.
   commitment.
 - `open` is rare — only where subclassing/overriding is explicitly part of
   the contract.
-- Use `@_spi(Internal)` for escape hatches that need to cross the module
+- Use `@_spi(Testing)` for escape hatches that need to cross the module
   boundary for tests or advanced users without becoming part of the semver
   surface.
 - Reserve `package` for when the multi-target split happens.
@@ -206,8 +202,6 @@ the same thing.
 - **Target/product split** — whether to break out macros, build-time
   helpers, or integration-specific code (e.g. SwiftUI/Observation
   adapters) into their own targets. Decide based on real usage patterns.
-- **Concurrency / Sendable posture** — Justin has a documented spec for this;
-  apply it when implementing the data-modeling primitives, not now.
 
 ## Multi-machine sync
 
