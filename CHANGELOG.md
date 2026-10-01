@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-01
+
 ### Fixed
 
 - `Credential` now stores every item in the data-protection keychain on
