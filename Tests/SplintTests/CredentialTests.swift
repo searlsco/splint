@@ -91,19 +91,21 @@ struct CredentialTests {
     // An unsigned process may write to the legacy login keychain (where
     // these items used to land), but the data-protection keychain demands
     // the `keychain-access-groups` entitlement, so every write is refused
-    // and nothing is stored.
+    // and nothing is stored. The exact status depends on the host.
     let b = SystemKeychainBackend()
     let (service, account) = ("co.searls.splint.tests", "test-\(UUID().uuidString)")
-    #expect(b.add(service: service, account: account, synchronizable: false, data: Data("x".utf8)) == errSecMissingEntitlement)
-    #expect(b.read(service: service, account: account, synchronizable: false).status == errSecItemNotFound)
-    #expect(b.update(service: service, account: account, synchronizable: false, data: Data("y".utf8)) == errSecMissingEntitlement)
-    #expect(b.delete(service: service, account: account, synchronizable: false) == errSecMissingEntitlement)
+    defer { _ = b.delete(service: service, account: account, synchronizable: false) }
+    #expect(b.add(service: service, account: account, synchronizable: false, data: Data("x".utf8)) != errSecSuccess)
+    #expect(b.read(service: service, account: account, synchronizable: false).data == nil)
+    #expect(b.update(service: service, account: account, synchronizable: false, data: Data("y".utf8)) != errSecSuccess)
+    #expect(b.delete(service: service, account: account, synchronizable: false) != errSecSuccess)
   }
 
   @Test func publicInitSyncsByDefaultAndUsesSystemKeychain() {
     #expect(Credential(service: "s", account: "a").synchronizable)
     let c = Credential(service: "co.searls.splint.tests", account: "test-\(UUID().uuidString)", synchronizable: false)
-    #expect(throws: Credential.KeychainError(status: errSecMissingEntitlement)) {
+    defer { try? c.delete() }
+    #expect(throws: Credential.KeychainError.self) {
       try c.save("x")
     }
   }
