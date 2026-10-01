@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Credential` now stores every item in the data-protection keychain on
+  macOS. Non-synchronizable items used to land in the legacy login
+  keychain, whose per-app access lists prompt for the keychain password
+  when the app's build changes. Items saved there by earlier versions are
+  no longer visible. No effect on iOS.
+
 ## [0.12.0] - 2026-09-25
 
 ### Added

@@ -5,19 +5,15 @@ import Testing
 
 @Suite("Credential")
 struct CredentialTests {
+  // The SwiftPM test runner is unsigned, so it has no
+  // `keychain-access-groups` entitlement and cannot reach the
+  // data-protection keychain. Round trips run against an in-memory backend.
   private func makeCredential() -> Credential {
-    // Unique per-test account to avoid keychain pollution between runs.
-    // `synchronizable: false` keeps tests off iCloud Keychain.
-    Credential(
-      service: "co.searls.splint.tests",
-      account: "test-\(UUID().uuidString)",
-      synchronizable: false
-    )
+    Credential(service: "s", account: "a", synchronizable: false, backend: InMemoryBackend())
   }
 
   @Test func saveThenReadReturnsValue() throws {
     let c = makeCredential()
-    defer { try? c.delete() }
     try c.save("hello")
     #expect(try c.read() == "hello")
   }
@@ -31,7 +27,6 @@ struct CredentialTests {
 
   @Test func saveOverwritesExistingValue() throws {
     let c = makeCredential()
-    defer { try? c.delete() }
     try c.save("first")
     try c.save("second")
     #expect(try c.read() == "second")
@@ -83,6 +78,36 @@ struct CredentialTests {
     }
   }
 
+  // MARK: - System backend
+
+  @Test(arguments: [false, true])
+  func systemBackendTargetsDataProtectionKeychain(synchronizable: Bool) {
+    let query = SystemKeychainBackend().baseQuery(
+      service: "s", account: "a", synchronizable: synchronizable)
+    #expect(query[kSecUseDataProtectionKeychain as String] as? Bool == true)
+  }
+
+  @Test func systemBackendOperationsReachDataProtectionKeychain() {
+    // An unsigned process may write to the legacy login keychain (where
+    // these items used to land), but the data-protection keychain demands
+    // the `keychain-access-groups` entitlement, so every write is refused
+    // and nothing is stored.
+    let b = SystemKeychainBackend()
+    let (service, account) = ("co.searls.splint.tests", "test-\(UUID().uuidString)")
+    #expect(b.add(service: service, account: account, synchronizable: false, data: Data("x".utf8)) == errSecMissingEntitlement)
+    #expect(b.read(service: service, account: account, synchronizable: false).status == errSecItemNotFound)
+    #expect(b.update(service: service, account: account, synchronizable: false, data: Data("y".utf8)) == errSecMissingEntitlement)
+    #expect(b.delete(service: service, account: account, synchronizable: false) == errSecMissingEntitlement)
+  }
+
+  @Test func publicInitSyncsByDefaultAndUsesSystemKeychain() {
+    #expect(Credential(service: "s", account: "a").synchronizable)
+    let c = Credential(service: "co.searls.splint.tests", account: "test-\(UUID().uuidString)", synchronizable: false)
+    #expect(throws: Credential.KeychainError(status: errSecMissingEntitlement)) {
+      try c.save("x")
+    }
+  }
+
   @Test func keychainErrorExposesStatusAndDescribesItself() {
     let e = Credential.KeychainError(status: -25300)
     #expect(e.status == -25300)
@@ -118,5 +143,47 @@ private struct StubBackend: CredentialBackend {
 
   func delete(service: String, account: String, synchronizable: Bool) -> OSStatus {
     deleteStatus
+  }
+}
+
+// A `CredentialBackend` that behaves like the keychain for one process:
+// add fails on duplicates, update and delete fail when absent.
+private final class InMemoryBackend: CredentialBackend, @unchecked Sendable {
+  private let lock = NSLock()
+  private var items: [String: Data] = [:]
+
+  private func key(_ service: String, _ account: String, _ synchronizable: Bool) -> String {
+    "\(service)|\(account)|\(synchronizable)"
+  }
+
+  func read(service: String, account: String, synchronizable: Bool)
+    -> (status: OSStatus, data: Data?)
+  {
+    lock.withLock {
+      guard let data = items[key(service, account, synchronizable)] else { return (errSecItemNotFound, nil) }
+      return (errSecSuccess, data)
+    }
+  }
+
+  func add(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus {
+    lock.withLock {
+      let k = key(service, account, synchronizable)
+      guard items[k] == nil else { return errSecDuplicateItem }
+      items[k] = data
+      return errSecSuccess
+    }
+  }
+
+  func update(service: String, account: String, synchronizable: Bool, data: Data) -> OSStatus {
+    lock.withLock {
+      let k = key(service, account, synchronizable)
+      guard items[k] != nil else { return errSecItemNotFound }
+      items[k] = data
+      return errSecSuccess
+    }
+  }
+
+  func delete(service: String, account: String, synchronizable: Bool) -> OSStatus {
+    lock.withLock { items.removeValue(forKey: key(service, account, synchronizable)) == nil ? errSecItemNotFound : errSecSuccess }
   }
 }

@@ -157,13 +157,16 @@ public struct SystemKeychainBackend: CredentialBackend {
     return SecItemDelete(query as CFDictionary)
   }
 
-  private func baseQuery(service: String, account: String, synchronizable: Bool) -> [String: Any] {
+  func baseQuery(service: String, account: String, synchronizable: Bool) -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: account,
       kSecAttrSynchronizable as String: synchronizable
         ? kCFBooleanTrue as Any : kCFBooleanFalse as Any,
+      // Keeps non-synced items out of the macOS legacy login keychain,
+      // whose per-app ACLs prompt for the keychain password. No-op on iOS.
+      kSecUseDataProtectionKeychain as String: kCFBooleanTrue as Any,
     ]
   }
 }
