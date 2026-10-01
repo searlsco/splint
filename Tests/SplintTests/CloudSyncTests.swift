@@ -309,10 +309,15 @@ struct CloudSyncTests {
     // background write must use this very instance.
     nonisolated(unsafe) let defaults = defaults
 
-    await Task.detached {
-      defaults.set("from the background", forKey: "mirrored")
-      CloudSync.announceMutation(of: "mirrored", in: defaults)
-    }.value
+    // A `@Sendable` GCD closure rather than `Task.detached`: Swift 6.2
+    // rejects the `nonisolated(unsafe)` capture in a `sending` closure.
+    await withCheckedContinuation { continuation in
+      DispatchQueue.global().async {
+        defaults.set("from the background", forKey: "mirrored")
+        CloudSync.announceMutation(of: "mirrored", in: defaults)
+        continuation.resume()
+      }
+    }
 
     await waitUntil { store.values["mirrored"] as? String == "from the background" }
     #expect(store.setCount == 1)
