@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   macOS. Non-synchronizable items used to land in the legacy login
   keychain, whose per-app access lists prompt for the keychain password
   when the app's build changes. Items saved there by earlier versions are
-  no longer visible. No effect on iOS.
+  no longer visible. No effect on iOS. A macOS app must now be signed by
+  a development team with the `keychain-access-groups` entitlement, or
+  every `Credential` call fails with `errSecMissingEntitlement` (-34018).
 
 ## [0.12.0] - 2026-09-25
 

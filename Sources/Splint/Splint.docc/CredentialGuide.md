@@ -38,6 +38,17 @@ let deviceKey = Credential(
 )
 ```
 
+### macOS entitlement
+
+Since 0.12.1, ``Credential`` stores every item on macOS in the
+data-protection keychain (the same keychain iOS uses), never the legacy
+login keychain. The data-protection keychain requires the app to be
+signed by a development team with the `keychain-access-groups`
+entitlement. Without it, every call fails with `errSecMissingEntitlement`
+(-34018). Items an app saved with an earlier version on macOS were
+stored in the login keychain and are no longer visible. iOS is
+unaffected.
+
 ## Topics
 
 ### Related

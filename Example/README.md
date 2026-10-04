@@ -10,6 +10,9 @@ Open `Bookshelf.xcodeproj` in Xcode 26.4+ and pick a destination:
 - **My Mac** — runs as a native macOS app.
 
 The scheme signs to run locally (no development team required).
+The Mac `Credential` demo (Settings → API) is the exception: on macOS,
+`Credential` uses the data-protection keychain, so saving a token there
+needs a development team and the `keychain-access-groups` entitlement.
 
 ## Running the tests
 

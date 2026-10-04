@@ -40,8 +40,8 @@ it doesn't gate where the package builds.
 
 ## Versioning & releases
 
-- **Semver.** Start at `0.1.0`. While in `0.x`, minor bumps may break API
-  freely.
+- **Semver.** Start at `0.1.0`. Breaking changes need the owner's explicit
+  approval, regardless of `0.x`.
 - **Ship 1.0 only after battle-testing in 2+ of Justin's own projects.** No
   preemptive stability promises.
 - **Tags are bare semver** — `0.1.0`, not `v0.1.0`. Matches Apple / swift-*
@@ -65,11 +65,6 @@ it doesn't gate where the package builds.
 
 - **swift-testing only.** No XCTest in new test files. `@Test` / `#expect`
   everywhere.
-- Follow the project's testing rules in `.claude/rules/testing.md` (write
-  tests first, one behavior per test, test behavior not implementation).
-- Add a regression test at the smallest layer that demonstrates the behavior.
-  Add an integration test only when the requirement crosses component boundaries;
-  do not require two testing loops for every change.
 - **100% line coverage on `Sources/Splint/`** is enforced by `script/test`
   and is a forcing function, not a metric — delete unreachable lines,
   restructure for testability, or tag with `// coverage:ignore — <rationale>`
@@ -202,7 +197,3 @@ the same thing.
 - **Target/product split** — whether to break out macros, build-time
   helpers, or integration-specific code (e.g. SwiftUI/Observation
   adapters) into their own targets. Decide based on real usage patterns.
-
-## Multi-machine sync
-
-This repository is edited from more than one Mac. Before starting work, fetch and integrate `origin/main` (fast-forward when possible). After finishing, commit everything uncommitted, including changes that are not yours unless another agent is actively working in this checkout, then fetch, integrate `origin/main`, and push. The full rule is in the global agent instructions (`~/icloud-drive/dotfiles/AGENTS.md`).
