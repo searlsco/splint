@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-10-04
+
 ### Documentation
 
 - The Credential guide and the Example README explain that a macOS app
