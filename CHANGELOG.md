@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- The Credential guide and the Example README explain that a macOS app
+  needs a development team and the `keychain-access-groups` entitlement
+  for `Credential` since 0.12.1.
+
 ## [0.12.1] - 2026-10-01
 
 ### Fixed
