@@ -154,7 +154,7 @@ struct GroupedLensTests {
     }
     c.load(TestCriteria(category: "a"))
     await waitUntil { c.phase == .completed }
-    let l = GroupedLens<TestItem, Int>(source: c, categorize: { $0.score })
+    let l = GroupedLens<TestItem, Int>(source: c, categorize: \.score)
     await waitUntil { l.items.count == 1 }
     #expect(l.groups.map(\.category) == [10])
     c.refresh()
@@ -187,7 +187,7 @@ struct GroupedLensTests {
     let c = await loadedCatalog([])
     let l = GroupedLens<TestItem, String>(
       source: c,
-      categorize: { $0.name }
+      categorize: \.name
     )
     #expect(l.items.isEmpty)
     #expect(l.groups.isEmpty)
@@ -302,7 +302,7 @@ struct GroupedLensTests {
     }
     c.load(TestCriteria(category: "a"))
     await waitUntil { c.phase == .completed }
-    let l = GroupedLens<TestItem, Int>(source: c, categorize: { $0.score })
+    let l = GroupedLens<TestItem, Int>(source: c, categorize: \.score)
     await waitUntil { l[id: 1] != nil }
     #expect(l[id: 1]?.score == 1)
     #expect(l[id: 2] == nil)
@@ -330,7 +330,7 @@ struct GroupedLensTests {
       TestItem(id: 1, name: "first", score: 1),
       TestItem(id: 1, name: "second", score: 2),
     ])
-    let l = GroupedLens<TestItem, Int>(source: c, categorize: { $0.score })
+    let l = GroupedLens<TestItem, Int>(source: c, categorize: \.score)
     #expect(l[id: 1]?.name == "first")
   }
 
@@ -346,7 +346,7 @@ struct GroupedLensTests {
     await waitUntil { c.phase == .completed }
     let l = GroupedLens<TestItem, String>(
       source: c,
-      categorize: { $0.name }
+      categorize: \.name
     )
     await waitUntil { l.items.count == 1 }
     #expect(!l.groups.isEmpty)

@@ -52,7 +52,7 @@ struct ViewLogicTests {
     await waitUntil { catalog.phase == .completed }
     let lens = GroupedLens<Book, String>(
       source: catalog,
-      categorize: { $0.author }
+      categorize: \.author
     )
     #expect(lens.groups.map(\.category) == ["Abrams", "Carr", "Lopez"])
     #expect(lens.groups.first { $0.category == "Lopez" }?.items.count == 2)
@@ -70,7 +70,7 @@ struct ViewLogicTests {
     await waitUntil { catalog.phase == .completed }
     let lens = GroupedLens<Book, String>(
       source: catalog,
-      categorize: { $0.genre }
+      categorize: \.genre
     )
     #expect(lens.groups.map(\.category) == ["Biography", "Fiction", "Nonfiction"])
     #expect(lens.groups.first { $0.category == "Fiction" }?.items.map(\.id).sorted() == ["1", "3"])
@@ -96,7 +96,7 @@ struct ViewLogicTests {
     ])
     let lens = GroupedLens<Book, String>(source: catalog)
     let idsBefore = lens.items.map(\.id)
-    lens.updateCategories { $0.author }
+    lens.updateCategories(\.author)
     #expect(lens.items.map(\.id) == idsBefore)
   }
 
@@ -107,7 +107,7 @@ struct ViewLogicTests {
     ])
     let lens = GroupedLens<Book, String>(
       source: catalog,
-      categorize: { $0.author }
+      categorize: \.author
     )
     let idsBefore = lens.items.map(\.id)
     lens.updateCategories(nil)

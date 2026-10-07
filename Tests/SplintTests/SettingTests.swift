@@ -227,7 +227,7 @@ struct SettingTests {
       _ = settings
     }
     await drainMain()
-    let leaked = weakProbes.filter { !$0() }.count
+    let leaked = weakProbes.count { !$0() }
     #expect(leaked == 0, "expected all 100 Settings to deallocate, \(leaked) leaked")
   }
 

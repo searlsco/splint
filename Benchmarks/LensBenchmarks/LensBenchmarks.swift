@@ -173,7 +173,7 @@ private func primeCatalog(n: Int) async -> Catalog<BenchItem, BenchCriteria> {
   let c = Catalog<BenchItem, BenchCriteria> { _ in items }
   c.load(BenchCriteria(tag: "bench"))
   let deadline = ContinuousClock.now.advanced(by: .seconds(30))
-  while c.phase != .completed, ContinuousClock.now < deadline {
+  while c.phase != .completed, ContinuousClock.now < deadline, !Task.isCancelled {
     try? await Task.sleep(for: .milliseconds(5))
   }
   precondition(c.phase == .completed, "catalog failed to load within 30s")
