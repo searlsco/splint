@@ -9,10 +9,8 @@ import Splint
 /// search query and preferred genre both compose into the same
 /// `updateFilter` call on the same lens — one list, one lens.
 public struct BookListView: View {
-  @Environment(\.bookCatalog) private var catalog
   @Environment(\.displayLens) private var displayLens
   @Environment(\.bookSelection) private var selection
-  @Environment(\.showCoversSetting) private var showCovers
   @Query(sort: \Favorite.dateAdded) private var favorites: [Favorite]
 
   @Binding var query: String
@@ -35,23 +33,25 @@ public struct BookListView: View {
   }
 
   public var body: some View {
-    List(selection: Binding(
-      get: { selection?.current },
-      set: { selection?.current = $0 }
-    )) {
+    // Without an injected selection, List selection writes go to a
+    // throwaway instance and have no effect.
+    @Bindable var selection = selection ?? Selection()
+
+    List(selection: $selection.current) {
       if grouping == .none {
         ForEach(displayLens?.items ?? []) { book in
-          row(for: book)
+          BookListRow(book: book)
         }
       } else {
         ForEach(displayLens?.groups ?? [], id: \.category) { group in
           Section(group.category) {
-            ForEach(group.items) { book in row(for: book) }
+            ForEach(group.items) { book in BookListRow(book: book) }
           }
         }
       }
     }
-    .overlay { emptyStateOverlay }
+    .environment(\.favoriteBookIDs, Set(favorites.map(\.bookID)))
+    .overlay { BookListEmptyState() }
     .searchable(text: $query)
     .toolbar {
       ToolbarItem {
@@ -71,20 +71,48 @@ public struct BookListView: View {
     .navigationTitle("Bookshelf")
   }
 
-  private func row(for book: Book) -> some View {
+  private func applyGrouping(_ g: Grouping) {
+    switch g {
+    case .none: displayLens?.updateCategories(nil)
+    case .author: displayLens?.updateCategories(\.author)
+    case .genre: displayLens?.updateCategories(\.genre)
+    }
+  }
+}
+
+extension EnvironmentValues {
+  /// IDs of favorited books, injected by ``BookListView`` so each row
+  /// reads favorite state itself instead of the list's row closure.
+  @Entry var favoriteBookIDs: Set<String> = []
+}
+
+/// One list row. Takes only its `book`; favorite state and the cover
+/// setting come from the environment, so a change to either updates
+/// the rows without re-running ``BookListView``'s row closures.
+private struct BookListRow: View {
+  let book: Book
+
+  @Environment(\.favoriteBookIDs) private var favoriteBookIDs
+  @Environment(\.showCoversSetting) private var showCovers
+
+  var body: some View {
     NavigationLink(value: book.id) {
       BookRowView(
         book: book,
-        isFavorite: favorites.contains { $0.bookID == book.id },
+        isFavorite: favoriteBookIDs.contains(book.id),
         showCover: showCovers?.value ?? true
       )
     }
   }
+}
 
-  @ViewBuilder
-  private var emptyStateOverlay: some View {
-    let items = displayLens?.items ?? []
-    if items.isEmpty {
+/// Loading, empty, and failure states shown over an empty list.
+private struct BookListEmptyState: View {
+  @Environment(\.bookCatalog) private var catalog
+  @Environment(\.displayLens) private var displayLens
+
+  var body: some View {
+    if displayLens?.items.isEmpty ?? true {
       switch catalog?.phase {
       case .idle, .running, nil:
         ProgressView("Loading books…")
@@ -101,14 +129,6 @@ public struct BookListView: View {
           description: Text(message)
         )
       }
-    }
-  }
-
-  private func applyGrouping(_ g: Grouping) {
-    switch g {
-    case .none: displayLens?.updateCategories(nil)
-    case .author: displayLens?.updateCategories { $0.author }
-    case .genre: displayLens?.updateCategories { $0.genre }
     }
   }
 }

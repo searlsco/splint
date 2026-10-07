@@ -52,10 +52,7 @@ public struct BookDetailView: View {
           Button("Remove from Favorites", role: .destructive) {
             modelContext.delete(existing)
           }
-          TextField("Notes", text: Binding(
-            get: { existing.notes },
-            set: { existing.notes = $0 }
-          ))
+          FavoriteNotesField(favorite: existing)
         } else {
           Button("Add to Favorites") {
             modelContext.insert(Favorite(bookID: book.id))
@@ -77,5 +74,15 @@ public struct BookDetailView: View {
     // (`@Query` results, mutating `@State`, etc.) from inside the Task
     // would still be wrong. See the DocC JobGuide "Closures and isolation".
     metadataJob.run { try await client.fetchMetadata(book.id) }
+  }
+}
+
+/// Edits a favorite's notes through a `@Bindable` projection of the
+/// SwiftData model.
+private struct FavoriteNotesField: View {
+  @Bindable var favorite: Favorite
+
+  var body: some View {
+    TextField("Notes", text: $favorite.notes)
   }
 }
