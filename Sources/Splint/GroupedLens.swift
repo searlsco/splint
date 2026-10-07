@@ -179,8 +179,8 @@ public final class GroupedLens<
     } onChange: { [weak self] in
       Task { @MainActor [weak self] in
         guard let self else { return }
-        self.refresh()
-        self.observe()
+        refresh()
+        observe()
       }
     }
   }
