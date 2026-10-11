@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-10-11
+
 ### Changed
 
 - Internal tidying of tests, the benchmark, and lens observation closures; no public API change.
