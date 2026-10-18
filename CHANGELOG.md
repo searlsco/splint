@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-10-18
+
 ### Fixed
 
 - Cancel a Job's current operation when the Job is released.
