@@ -16,9 +16,27 @@ only one do not re-evaluate when the other changes.
 let metadataJob = Job<Metadata>()
 
 .task {
-    metadataJob.run { try await client.fetchMetadata(book.id) }
+    let client = client
+    let id = book.id
+    metadataJob.run { try await client.fetchMetadata(id) }
 }
 ```
+
+## Ownership and cancellation
+
+The job owns its operation independently of the task that calls
+``Job/run(priority:task:)``. Cancelling a SwiftUI `.task` does not cancel
+the job. Call ``Job/cancel()`` when work must stop while its owner remains
+alive. Releasing the job also cancels its current operation.
+
+Cancellation is cooperative: the operation must observe cancellation or
+use cancellation-aware APIs to stop. Capture operation inputs rather than
+the job or a view that stores it. A closure retaining the job keeps it
+alive, so deinitialization cannot cancel that operation until the closure
+releases its reference.
+
+Use `.task(id: book.id)` when a mounted view can receive a different book,
+so the new input starts a new run and cancels the previous operation.
 
 ## Closures and isolation
 
@@ -30,8 +48,8 @@ including `self` of a SwiftUI `View`, whose property wrappers usually
 make the enclosing struct non-`Sendable`. Region-based isolation
 accepts the closure's disconnected copy of the captured values.
 
-Capture whatever's needed — a `Sendable` service, `self`'s init-time
-`let` properties, a value-type input. What to avoid inside the closure
+Capture the specific inputs needed: a `Sendable` service, an identifier,
+or another value-type input. What to avoid inside the closure
 body:
 
 - Reading `@State`, `@Query` results, or `@Environment` values from
@@ -54,12 +72,7 @@ metadataJob.run {
 Patterns that work well:
 
 ```swift
-// ✅ Capture self; read stable init-time `let` properties.
-.task {
-    metadataJob.run { try await client.fetchMetadata(book.id) }
-}
-
-// ✅ Equivalent; explicit capture for readability.
+// ✅ Capture operation inputs without retaining the view.
 .task {
     let client = client
     let id = book.id

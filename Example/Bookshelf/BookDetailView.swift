@@ -61,19 +61,15 @@ public struct BookDetailView: View {
       }
     }
     .navigationTitle(book.title)
-    .task { runMetadata() }
+    .task(id: book.id) { runMetadata() }
   }
 
   private func runMetadata() {
-    // `Job.run`'s `task:` is `sending` — region-based isolation accepts
-    // the closure's disconnected copy of `self` even though
-    // `BookDetailView` is not `Sendable` (it holds `@Query`,
-    // `@Environment`, and `@State` property wrappers that aren't).
-    // Under `@Sendable` this would fail to compile. We only read stable
-    // `let` properties (`client`, `book`) — reaching into view state
-    // (`@Query` results, mutating `@State`, etc.) from inside the Task
-    // would still be wrong. See the DocC JobGuide "Closures and isolation".
-    metadataJob.run { try await client.fetchMetadata(book.id) }
+    // Capture only operation inputs. Capturing the view also captures its
+    // @State Job, retaining the owner until the operation finishes.
+    let client = client
+    let id = book.id
+    metadataJob.run { try await client.fetchMetadata(id) }
   }
 }
 
