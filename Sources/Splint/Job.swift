@@ -30,6 +30,8 @@ public final class Job<Value: Sendable> {
   /// SwiftUI `EnvironmentKey`, which is read from nonisolated contexts.
   public nonisolated init() {}
 
+  deinit { runningTask?.cancel() }
+
   /// Run an async operation, transferring its result into the Job's
   /// ``value``.
   ///

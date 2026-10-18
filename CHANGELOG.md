@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Cancel a Job's current operation when the Job is released.
+- Refresh Bookshelf metadata when the selected book changes, without retaining the view in the operation.
+
 ## [0.12.3] - 2026-10-11
 
 ### Changed

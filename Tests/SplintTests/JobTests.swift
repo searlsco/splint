@@ -63,6 +63,29 @@ struct JobTests {
     #expect(job.value == 1)
   }
 
+  @Test func releasingJobCancelsInFlightWork() async {
+    let started = AsyncGate()
+    let finish = AsyncGate()
+    var job: Job<Int>? = Job()
+    weak var releasedJob = job
+    job?.run {
+      await started.open()
+      await finish.wait()
+      try Task.checkCancellation()
+      return 42
+    }
+    let runningTask = job?.currentTask
+    await started.wait()
+
+    job = nil
+
+    #expect(releasedJob == nil)
+    #expect(runningTask?.isCancelled == true)
+    // Open even on failure so the regression cannot leave orphan work.
+    await finish.open()
+    await runningTask?.value
+  }
+
   @Test func cancelOnNeverRunIsNoop() {
     let job = Job<Int>()
     job.cancel()
